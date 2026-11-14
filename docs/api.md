@@ -146,6 +146,13 @@ data: {"traceId":"8f2c1a...","degraded":false}
 
 ## 3. 운영 API (Q-17 결정: 인터넷에 열지 않음. local 프로필 전용)
 
+> **응답 모양 (2026-11-14 결정)**
+> - 목록(`GET /ops/v1/sync-runs`, `.../failures`)은 `{"items":[...]}`, 최신 실행이 먼저(runId 내림차순).
+> - 실행 단건은 평평한 필드: `runId, type, status, errorCode, startedAt, finishedAt, sourceTotalCount, fetched, created, updated, unchanged, removed, failed`.
+> - 실패 항목: `stage, serviceId, page, httpStatus, errorCode, message`.
+> - 에러는 Problem Details(`application/problem+json`)에 `status`, `code`. 예: 없는 runId → 404 `SYNC_RUN_NOT_FOUND`.
+> - 실행 중 건수는 페이지 하나를 처리할 때마다 따로 커밋해서 반영한다(`fetched`, `heartbeat_at`).
+
 | 메서드 | 경로 | 요청 | 응답 | 상태 코드 |
 |---|---|---|---|---|
 | POST | `/ops/v1/sync-runs` | `{"type":"INCREMENTAL"}` 또는 `{"type":"FULL"}` | `{"runId":42,"status":"RUNNING"}` | 202 / 400 / 401 / 409 `SYNC_ALREADY_RUNNING` |

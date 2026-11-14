@@ -24,15 +24,16 @@
 
 | 컬럼 | 타입(초안) | 공공 API 필드 (출처) | 설명 |
 |---|---|---|---|
-| service_id | varchar(64) PK | 서비스ID (목록·상세·조건) | 형식·길이 [미확인] (Q-30) |
-| name | varchar(500) | 서비스명 (목록·상세) | 필수 (Q-30) |
+| service_id | varchar(64) PK | 서비스ID (목록·상세·조건) | 실측: 항상 12자, 숫자 또는 대문자+숫자 |
+| name | varchar(500) | 서비스명 (목록·상세) | 필수 (실측: 전부 있음) |
 | purpose_summary | text | 서비스목적요약 (목록) | |
 | purpose | text | 서비스목적 (상세) | |
 | target | text | 지원대상 (목록·상세) | |
 | selection_criteria | text | 선정기준 (목록·상세) | |
 | support_content | text | 지원내용 (목록·상세) | |
 | apply_method | text | 신청방법 (목록·상세) | |
-| apply_deadline | text | 신청기한 (목록·상세) | 형식 미조사. 날짜로 해석하지 않고 글자로 저장 |
+| apply_deadline | text | 신청기한 (목록·상세) | 날짜로 해석하지 않고 글자로 저장 |
+| apply_deadline_type | varchar(50) | 신청기한유형 (목록·상세) | 실측으로 새로 찾은 필드. 직접입력 / 상시신청 / 접수기관별상이 / 기간설정 (SYNC-5-E10) |
 | support_type | varchar | 지원유형 (목록·상세) | |
 | service_field | varchar | 서비스분야 (목록) | |
 | user_type | varchar | 사용자구분 (목록) | 값이 여러 개 들어오는지 [미확인] |
@@ -53,9 +54,9 @@
 | laws | text | 법령 (상세) | |
 | local_laws | text | 자치법규 (상세) | |
 | admin_rules | text | 행정규칙 (상세) | |
-| source_registered_at | timestamp null | 등록일시 (목록) | 형식 [미확인] |
-| list_modified_at | timestamp null | 수정일시 (목록) | 형식 [미확인] |
-| detail_modified_at | timestamp null | 수정일시 (상세) | 형식 [미확인] |
+| source_registered_at | timestamp null | 등록일시 (목록) | `yyyyMMddHHmmss`, KST로 해석 |
+| list_modified_at | timestamp null | 수정일시 (목록) | `yyyyMMddHHmmss`, KST로 해석 |
+| detail_modified_at | timestamp null | 수정일시 (상세) | `yyyyMMddHHmmss`, KST로 해석 |
 | status | varchar | (우리 값) | ACTIVE / REMOVED |
 | missing_count | int | (우리 값) | 성공한 전체 수집에서 연속으로 안 보인 횟수 (Q-11) |
 | first_seen_at / last_seen_at / removed_at | timestamp | (우리 값) | |
