@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: government-subsidy
+
+# api.md: /actuator/health 는 {"status":"UP"} 만 공개한다 (Q-44)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
