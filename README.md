@@ -18,3 +18,13 @@
 
 ## 개발 방식
 요구사항·예외 케이스 분석 → 사람 승인 → 테스트 먼저(Red) → 구현(Green) → 검증 순서로 개발합니다. 규칙은 [`CLAUDE.md`](CLAUDE.md), 단계별 AI 에이전트는 [`.claude/agents/`](.claude/agents) 에 있습니다.
+
+## 브랜치 규칙
+
+| 브랜치 | 용도 | 규칙 |
+|---|---|---|
+| `main` | 릴리스 | 직접 push 금지, force push·삭제 금지. `dev` → `main` PR로만 병합 |
+| `dev` | 개발 기본 브랜치 | force push·삭제 금지. 작업 브랜치 PR로만 병합 |
+| `feature/{기능명}`, `fix/{기능명}`, `docs/{기능명}` | 작업 | `dev`에서 만들고 `dev`로 PR |
+
+PR은 CI(`test`)와 Claude 리뷰(`review`)를 통과해야 병합된다. Claude는 PASS면 Approve, BLOCK이면 Request changes를 남기고 `review` 검사를 실패시킨다.
