@@ -1,0 +1,33 @@
+# Gradle / Java
+.gradle/
+build/
+out/
+bin/
+*.class
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 환경 변수·비밀 값 (절대 커밋 금지)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# AI 도구: 개인 권한 설정·PC 경로·작업 메모는 올리지 않는다
+.claude/settings.local.json
+.claude/notes/
+.codex/config.toml
+.codex/hooks.json
+
+# 로컬 LLM 모델 파일 (EXAONE 라이선스상 가중치 재배포 금지)
+*.gguf
+*.safetensors
