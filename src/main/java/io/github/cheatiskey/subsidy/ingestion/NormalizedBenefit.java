@@ -2,7 +2,6 @@ package io.github.cheatiskey.subsidy.ingestion;
 
 import java.time.Instant;
 
-// 껍데기(2단계 테스트 컴파일용). 로직 없음. 3단계에서 구현한다.
 /** 목록(serviceList) 한 건을 정리한 결과. 컬럼 대응은 docs/domain.md 2.1. */
 public record NormalizedBenefit(
         String serviceId,
