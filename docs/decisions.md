@@ -39,3 +39,7 @@
 | 2026-11-15 | 설정이 실제로 적용되는지는 짝 테스트로 확인한다 (같은 조건에서 설정만 바꿔 결과가 바뀌는지) | 값을 코드에 고정한 구현은 한쪽 테스트로는 못 잡는다 | — |
 | 2026-11-15 | "어떤 클래스가 로그를 남기지 않음"은 그 로거에 테스트용 ListAppender를 TRACE로 붙여 0건인지로 확인한다. "전체 로그에 키 없음"은 콘솔 출력 검사로 확인한다 | 콘솔 글자 모양은 로그 형식(JSON 등)·레벨·로거 이름에 따라 달라져 엉뚱하게 통과한다 | — |
 | 2026-11-15 | 테스트가 기대는 생성자 `new Gov24Client(Gov24Properties)`와 `Gov24Errors.httpError(status, path, page, body, key)`, `ioError(cause, path, page, key)`, `ServiceKeyMasker.mask(text, key)` 모양을 유지한다 | 테스트 계약. 바꿔야 하면 먼저 승인 | — |
+| 2026-11-15 | `Gov24ApiException` 메시지 형식: `<종류> status=<HTTP 상태> path=<경로> page=<번호> code=<공공 API code> cause=<원인 예외의 전체 클래스 이름>` (없는 칸은 생략). 예: `HTTP_ERROR status=401 path=/api/gov24/v3/serviceList page=3 code=-4`, `IO path=/api/gov24/v3/serviceList page=2 cause=java.io.IOException` | 테스트가 요구하는 형식을 문서에도 고정 | — |
+| 2026-11-15 | 예외 종류는 메시지 글자가 아니라 타입 규칙으로 나눈다: `HttpConnectTimeoutException`·`ConnectException` → CONNECTION, 그 밖의 `HttpTimeoutException` → TIMEOUT, 나머지 I/O(응답 헤더 전 끊김 포함) → IO. 좁은 타입부터 검사 | `HttpConnectTimeoutException`은 `HttpTimeoutException`의 자식이라 순서를 틀리면 TIMEOUT으로 잘못 분류됨 | — |
+| 2026-11-15 | 본문에서 꺼낸 공공 API `code`는 가린 값 그대로 `apiCode` 칸에도 넣는다 | 메시지만 가리고 칸을 안 가리면 #6에서 DB·로그로 새는 우회 경로가 생김 | — |
+| 2026-11-15 | HTTP/1.1 고정은 "정상 호출에 `Upgrade` 헤더가 없음"으로 테스트한다. E7은 직접 만든 HTTP/1.1 서버(`TruncatedBodyServer`)로 재현한다 | WireMock은 Content-Length를 실제 길이로 고쳐서 잘린 본문을 못 만든다 | — |
