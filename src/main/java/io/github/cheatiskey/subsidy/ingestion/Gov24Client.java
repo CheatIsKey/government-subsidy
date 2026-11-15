@@ -1,9 +1,14 @@
 package io.github.cheatiskey.subsidy.ingestion;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
@@ -14,15 +19,46 @@ public class Gov24Client implements ServiceListSource {
     static final String LIST_PATH = "/api/gov24/v3/serviceList";
 
     private final Gov24Properties properties;
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient;
 
     public Gov24Client(Gov24Properties properties) {
         this.properties = properties;
+        // HTTP/1.1 고정(기본 HTTP/2는 Upgrade: h2c를 보냄). 타임아웃을 설정하지 않으면 제한 없음.
+        HttpClient.Builder http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
+        if (properties.connectTimeout() != null) {
+            http.connectTimeout(properties.connectTimeout());
+        }
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http.build());
+        if (properties.readTimeout() != null) {
+            factory.setReadTimeout(properties.readTimeout());
+        }
+        this.restClient = RestClient.builder().requestFactory(factory).build();
     }
 
+    /** 실패는 모두 Gov24ApiException으로 던진다. 로그는 남기지 않는다. */
     @Override
     public String fetchPage(int page, int perPage) {
-        return restClient.get().uri(listUri(page, perPage)).retrieve().body(String.class);
+        try {
+            return restClient.get().uri(listUri(page, perPage)).retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        throw Gov24Errors.httpError(response.getStatusCode().value(), LIST_PATH, page, body,
+                                properties.serviceKey());
+                    })
+                    .body(String.class);
+        } catch (RestClientException e) {
+            throw Gov24Errors.ioError(ioCause(e), LIST_PATH, page, properties.serviceKey());
+        }
+    }
+
+    /** Spring이 감싼 예외 사슬에서 처음 나오는 IOException을 찾는다. 없으면 받은 예외 그대로. */
+    private static Throwable ioCause(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof IOException) {
+                return t;
+            }
+        }
+        return e;
     }
 
     /**
