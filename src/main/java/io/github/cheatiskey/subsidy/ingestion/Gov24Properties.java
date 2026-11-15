@@ -1,5 +1,6 @@
 package io.github.cheatiskey.subsidy.ingestion;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -8,7 +9,13 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * 실측: 3000 이상은 data 없이 "정상" 응답이 온다.
  */
 @ConfigurationProperties("subsidy.gov24")
-public record Gov24Properties(String baseUrl, String serviceKey, @DefaultValue("1000") int perPage) {
+public record Gov24Properties(
+        String baseUrl,
+        String serviceKey,
+        @DefaultValue("1000") int perPage,
+        // 껍데기(이슈 #4 2단계): 연결·응답 타임아웃 설정 칸. 기본값과 적용은 구현 단계(#6)에서 정한다.
+        Duration connectTimeout,
+        Duration readTimeout) {
 
     static final int MAX_PER_PAGE = 2000;
 
