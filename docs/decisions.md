@@ -29,3 +29,17 @@
 | 2026-11-14 | 서비스 키는 `+`, `/`, `=`까지 퍼센트 인코딩해서 보낸다 (테스트가 이 방식을 요구) | 실측 문서: Decoding 키를 URL 인코딩해서 전달. Spring의 기본 `build().encode()`는 `/`와 `=`를 인코딩하지 않으므로 다른 방식 필요 | — |
 | 2026-11-14 | 검사 실패율 10% 초과로 중단된 실행은 아무것도 저장하지 않는다 (SYNC-5-B2) | 응답 형식이 망가진 실행의 나머지 데이터도 믿지 않는다 | — |
 | 2026-11-14 | 구현 단계 할 일: `Gov24Properties`의 `toString`이 서비스 키를 출력하지 않게 한다 (OPS-5) | 로그에 키가 새는 것을 막기 위해 | — |
+| 2026-11-14 | 공공 API 호출 실패는 `Gov24ApiException`으로 감싼다. 메시지는 종류·HTTP 상태·경로·page·공공 API `code`만, 원래 예외는 cause에 넣지 않고 클래스 이름만 (이슈 #4) | 라이브러리·클라이언트가 바뀌어도 메시지 형식이 안전하게 유지되고, SYNC-6이 기댈 예외 타입이 생김 | 디버깅 정보가 부족할 때 |
+| 2026-11-14 | 외부에서 온 글(응답 본문, 원인 메시지)은 서비스 키 네 형태(원래·대문자·소문자·부분 인코딩)를 `****`로 가린다 | 응답이 요청 URL을 되돌려 주는 경우 대비 | — |
+| 2026-11-14 | `Gov24Client`는 로그를 남기지 않고 예외만 던진다. 로그는 실패를 처리하는 쪽(SYNC-6)이 남긴다 | 같은 실패가 여러 번 로그에 찍히지 않게 | — |
+| 2026-11-14 | 공공 API HTTP 클라이언트는 JDK HttpClient로 명시하고, 연결·응답 타임아웃을 `subsidy.gov24` 설정으로 받는다 (기본값은 #6) | 라이브러리 추가로 클라이언트가 바뀌면 예외 형식이 바뀜. 타임아웃이 없으면 무한 대기 | — |
+| 2026-11-15 | 공공 API 클라이언트는 HTTP/1.1로 고정한다 | 자바 HTTP 클라이언트 기본값은 HTTP/2 업그레이드 시도. 응답이 JSON 한 덩어리라 HTTP/2 이점이 없고, 운영·테스트 동작을 같게 하기 위해 | 공공 API가 HTTP/2만 지원하게 될 때 |
+| 2026-11-15 | 예외 종류 기준: 연결을 맺지 못함(ConnectException, 연결 대기 시간 초과) = CONNECTION, 맺은 뒤 문제(끊김, 본문 잘림) = IO. 연결 대기 시간 초과는 TIMEOUT보다 먼저 검사 | 예외 종류만으로 확실히 나눌 수 있게. 재시도(#6)에서는 둘 다 재시도 대상 | — |
+| 2026-11-15 | 정상·HTTP 오류 테스트의 응답 타임아웃은 넉넉하게(5초), 짧은 타임아웃은 타임아웃 시험에만. 지연은 제한의 몇 배로 | 첫 호출 준비 시간 때문에 정상 테스트가 "시간 초과"로 흔들리는 것(flaky)을 막기 위해 | — |
+| 2026-11-15 | 설정이 실제로 적용되는지는 짝 테스트로 확인한다 (같은 조건에서 설정만 바꿔 결과가 바뀌는지) | 값을 코드에 고정한 구현은 한쪽 테스트로는 못 잡는다 | — |
+| 2026-11-15 | "어떤 클래스가 로그를 남기지 않음"은 그 로거에 테스트용 ListAppender를 TRACE로 붙여 0건인지로 확인한다. "전체 로그에 키 없음"은 콘솔 출력 검사로 확인한다 | 콘솔 글자 모양은 로그 형식(JSON 등)·레벨·로거 이름에 따라 달라져 엉뚱하게 통과한다 | — |
+| 2026-11-15 | 테스트가 기대는 생성자 `new Gov24Client(Gov24Properties)`와 `Gov24Errors.httpError(status, path, page, body, key)`, `ioError(cause, path, page, key)`, `ServiceKeyMasker.mask(text, key)` 모양을 유지한다 | 테스트 계약. 바꿔야 하면 먼저 승인 | — |
+| 2026-11-15 | `Gov24ApiException` 메시지 형식: `<종류> status=<HTTP 상태> path=<경로> page=<번호> code=<공공 API code> cause=<원인 예외의 전체 클래스 이름>` (없는 칸은 생략). 예: `HTTP_ERROR status=401 path=/api/gov24/v3/serviceList page=3 code=-4`, `IO path=/api/gov24/v3/serviceList page=2 cause=java.io.IOException` | 테스트가 요구하는 형식을 문서에도 고정 | — |
+| 2026-11-15 | 예외 종류는 메시지 글자가 아니라 타입 규칙으로 나눈다: `HttpConnectTimeoutException`·`ConnectException` → CONNECTION, 그 밖의 `HttpTimeoutException` → TIMEOUT, 나머지 I/O(응답 헤더 전 끊김 포함) → IO. 좁은 타입부터 검사 | `HttpConnectTimeoutException`은 `HttpTimeoutException`의 자식이라 순서를 틀리면 TIMEOUT으로 잘못 분류됨 | — |
+| 2026-11-15 | 본문에서 꺼낸 공공 API `code`는 가린 값 그대로 `apiCode` 칸에도 넣는다 | 메시지만 가리고 칸을 안 가리면 #6에서 DB·로그로 새는 우회 경로가 생김 | — |
+| 2026-11-15 | HTTP/1.1 고정은 "정상 호출에 `Upgrade` 헤더가 없음"으로 테스트한다. E7은 직접 만든 HTTP/1.1 서버(`TruncatedBodyServer`)로 재현한다 | WireMock은 Content-Length를 실제 길이로 고쳐서 잘린 본문을 못 만든다 | — |
