@@ -521,12 +521,12 @@
 | OPS-5-B5 | 경계값 (회귀) | 200, Content-Type 값이 빈 칸, 정상 JSON | 지금처럼 오류 없이 본문 반환 | 회귀 |
 | OPS-5-N4 | 정상 (회귀) | 200, `application/json`, 한글 포함 정상 JSON | 받은 본문과 정확히 같은 문자열 | 회귀 |
 | OPS-5-N5 | 정상 (회귀) | 200 빈 본문 / 204 | 지금처럼 `null` (`""` 아님) | 회귀 |
-| OPS-5-E20 | 예외 | 상태를 받은 뒤 오류 본문을 읽다가 응답 타임아웃(`HttpTimeoutException`) | 기존 분류 규칙을 따라 종류 TIMEOUT, 상태 보존(예: `TIMEOUT status=503 ...`), 키 없음 | 단위 |
+| OPS-5-E20 | 예외 | 상태를 받은 뒤 오류 본문을 읽다가 응답 타임아웃(`HttpTimeoutException`) | 원인이 `HttpTimeoutException`이면 기존 분류 규칙(`kindOf`)대로 종류 TIMEOUT, 상태 보존(예: `TIMEOUT status=503 ...`), 키 없음. 분류 규칙을 지키는지 보는 단위 가드다. 실제 본문 읽기 중 타임아웃은 Spring이 본문 스트림을 닫아 `IOException`으로 오므로(Spring 7.0.10 `JdkClientHttpRequest` 283~289행) 같은 규칙에 따라 IO가 된다 | 단위 |
 | OPS-5-E7R | 예외 (회귀) | OPS-5-E7과 같은 200 잘린 본문 | 메시지가 `IO path=... page=... cause=...` 형식이고 status 칸이 없음, `httpStatus()`는 null | 통합 |
 
 결정 (2026-11-16, 사용자):
 - 범위: 위 케이스 전부 PR #8에서 처리.
-- 오류 응답(4xx/5xx)의 본문 읽기 실패는 종류 IO에 상태를 붙인다. 200 잘린 본문(OPS-5-E7)은 지금 그대로(status 없음), 기존 테스트 변경 없음.
+- 오류 응답(4xx/5xx)의 본문 읽기 실패는 상태를 붙이고, 종류는 기존 분류 규칙(`kindOf`)을 따른다(보통 IO, 원인이 타임아웃 예외면 TIMEOUT. 테스트 리뷰 결정으로 보강). 200 잘린 본문(OPS-5-E7)은 지금 그대로(status 없음), 기존 테스트 변경 없음.
 - 200 + 해석할 수 없는 Content-Type은 성공으로 보지 않고 감싼 예외(IO)로 처리.
 - 테스트 리뷰 결정: E7R·E20 추가, 상태 받은 뒤 IO 실패용 메서드는 이름을 따로 둠(`ioErrorAfterStatus`), B4·E19는 이미 구현된 동작이라 회귀로 받아들임.
 - 범위 밖: Content-Type 없는 200에서 한글이 ISO-8859-1로 읽히는 문제(별도 이슈, 실제 공공 API 헤더 확인 뒤).
