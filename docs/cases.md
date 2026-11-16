@@ -502,6 +502,32 @@
 해당 없음: 동시성(공유 상태 없음, 동시 실행은 SYNC-7), 재시도(SYNC-6, #6), 마이그레이션(OPS-5-M1: 배포된 DB 없음. 지금까지 sync_failure에는 고정 문구만 저장).
 범위 밖: 연결 대기 시간(connect-timeout) 동작 시험(응답 없는 IP를 쓰는 재현이 네트워크 환경마다 달라 불안정), 키가 없을 때 기동을 막는 검사(OPS-5-B3, 별도 승인 필요), 타임아웃 기본값(Q-38, #6), Gemini 키, 로그 전체 마스킹 필터와 traceId(OPS-8), actuator env 비공개 회귀 테스트(NFR-SEC-5).
 
+### OPS-5-E1 추가 (PR #8 CodeRabbit 지적 3·4, 2026-11-16 확인 필요 결정)
+
+> 근거: Spring 7.0.10 `DefaultRestClient`는 `retrieve().body()`에서 Content-Type 해석(221행)을 상태 처리(223행)보다 먼저 한다. 해석 실패 예외 `InvalidMediaTypeException`은 `IllegalArgumentException` 하위라서 `RestClientException` catch를 빠져나가고, 메시지에 헤더 값 전체가 들어간다. 오류 응답 본문 읽기의 IOException은 `RestClientException`으로 바뀌어 상태를 잃는다(265~274행).
+> 메시지 형식은 기존과 같다: `<종류> status= path= page= code= cause=<전체 클래스명>`, 없는 칸은 생략.
+
+| ID | 관점 | 상황 | 기대 결과 | 테스트 |
+|---|---|---|---|---|
+| OPS-5-E12 | 실패 (잘린 본문) | 503, 알린 길이보다 짧은 본문 뒤 연결 끊김 | 감싼 예외 종류 IO, **status=503 보존**, `cause=java.io.IOException` 계열 클래스 이름, 키 없음 | 통합 |
+| OPS-5-E13 | 실패 (잘린 본문) | 401, `{"code":-4` 다음에 연결 끊김 | E12와 같은 규칙, status=401. 잘린 JSON에서 code를 꺼내지 않음(code 칸 없음), 키 없음 | 통합 |
+| OPS-5-E14 | 실패 (잘못된 Content-Type) | 401, `Content-Type: not-a-type`, 본문 `{"code":-4,...}` | `HTTP_ERROR status=401 ... code=-4`. Spring 예외가 밖으로 나가지 않음, 키 없음 | 통합 |
+| OPS-5-E15 | 실패 (잘못된 Content-Type) | 503, 존재하지 않는 charset의 Content-Type, HTML 본문 | `HTTP_ERROR status=503`, 본문 없음, 키 없음 | 통합 |
+| OPS-5-E16 | 실패 (잘못된 Content-Type) | 200, `Content-Type: not-a-type`, 정상 JSON | 감싼 예외 종류 IO, status=200, `cause=org.springframework.http.InvalidMediaTypeException`. 그 페이지는 실패로 처리, 키 없음 | 통합 |
+| OPS-5-E17 | 키 노출 (헤더 값) | 401 / 503 / 200 각각, 해석할 수 없는 Content-Type 값 안에 키(원래 값·대문자 인코딩)를 넣음 | 메시지, 스택 트레이스 전체(Caused by 포함), cause 사슬 어디에도 키 네 형태 없음 | 통합 |
+| OPS-5-E18 | 키 노출 (원인 사슬) | 원인 예외(IOException, InvalidMediaTypeException) 메시지에 키가 있음 | 메시지에는 원인 클래스 이름만, cause는 null | 단위 |
+| OPS-5-E19 | 경계값 (회귀) | 401, Content-Type 헤더 없음, 본문 `{"code":-4}` | 지금처럼 `HTTP_ERROR status=401 ... code=-4` | 통합 |
+| OPS-5-B4 | 경계값 | 500, 빈 본문(Content-Length 0) | `HTTP_ERROR status=500`, code 칸 없음 | 통합 |
+| OPS-5-B5 | 경계값 (회귀) | 200, Content-Type 값이 빈 칸, 정상 JSON | 지금처럼 오류 없이 본문 반환 | 회귀 |
+| OPS-5-N4 | 정상 (회귀) | 200, `application/json`, 한글 포함 정상 JSON | 받은 본문과 정확히 같은 문자열 | 회귀 |
+| OPS-5-N5 | 정상 (회귀) | 200 빈 본문 / 204 | 지금처럼 `null` (`""` 아님) | 회귀 |
+
+결정 (2026-11-16, 사용자):
+- 범위: 위 케이스 전부 PR #8에서 처리.
+- 오류 응답(4xx/5xx)의 본문 읽기 실패는 종류 IO에 상태를 붙인다. 200 잘린 본문(OPS-5-E7)은 지금 그대로(status 없음), 기존 테스트 변경 없음.
+- 200 + 해석할 수 없는 Content-Type은 성공으로 보지 않고 감싼 예외(IO)로 처리.
+- 범위 밖: Content-Type 없는 200에서 한글이 ISO-8859-1로 읽히는 문제(별도 이슈, 실제 공공 API 헤더 확인 뒤).
+
 ## OPS-6 의존 서비스 장애 (Q-32, Q-33)
 
 | ID | 관점 | 상황 | 기대 결과 | 테스트 |
