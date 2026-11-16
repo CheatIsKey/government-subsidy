@@ -17,12 +17,15 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.http.InvalidMediaTypeException;
 
 /**
- * OPS-5-E9, E10, B1, B2 서비스 키 가리기와 감싼 예외 (단위). 키는 + / = 가 든 ab+c/d==.
+ * OPS-5-E9, E10, E18, E20, B1, B2 서비스 키 가리기와 감싼 예외 (단위). 키는 + / = 가 든 ab+c/d==.
  * 메시지 예 (docs/decisions.md): HTTP_ERROR status=401 path=/api/gov24/v3/serviceList page=3 code=-4.
- * 순서에 묶이지 않게 조각마다 contains로 본다.
+ * 앞서 만든 테스트(E9, E10, B2 등)는 칸 순서에 묶이지 않게 조각마다 contains로 본다.
+ * E18·E20은 docs/cases.md OPS-5-E1 추가 절에서 형식(칸 순서, 없는 칸 생략)이 확정되어 메시지 전체를 isEqualTo로 비교한다.
  */
 class Gov24ErrorsTest {
 
@@ -105,6 +108,54 @@ class Gov24ErrorsTest {
         assertThat(e.getCause()).isNull();
         assertThat(e.getMessage()).startsWith("IO ").contains("cause=java.io.IOException");
         assertThat(stackTrace(e)).doesNotContain("Caused by");
+        assertNoKey(stackTrace(e));
+    }
+
+    static Stream<Arguments> causesWithKey() {
+        return Stream.of(
+                Arguments.of(new IOException(CAUSE_MARKER + " serviceKey=" + KEY + " " + UPPER_ENCODED), 503),
+                Arguments.of(new InvalidMediaTypeException("bad " + KEY, CAUSE_MARKER + " " + UPPER_ENCODED), 200));
+    }
+
+    @ParameterizedTest(name = "[{index}] status {1}")
+    @MethodSource("causesWithKey")
+    @DisplayName("OPS-5-E18 원인 예외(IOException, InvalidMediaTypeException) 메시지에 키가 있어도 상태를 붙인 IO 메시지에는 원인 클래스 이름만, cause는 null")
+    void e18_causeMessageWithKeyIsNotIncludedWithStatus(Throwable cause, int status) {
+        Gov24ApiException e = Gov24Errors.ioErrorAfterStatus(cause, status, PATH, 18, KEY);
+
+        assertThat(e.kind()).isEqualTo(Gov24ApiException.Kind.IO);
+        assertThat(e.httpStatus()).as("httpStatus").isEqualTo(status);
+        assertThat(e.page()).isEqualTo(18);
+        assertThat(e.getCause()).isNull();
+        assertThat(e.getMessage()).isEqualTo("IO status=" + status + " path=" + PATH + " page=18 cause=" + cause.getClass().getName());
+        assertNoKey(stackTrace(e));
+    }
+
+    // E20: 상태를 받은 뒤 실패도 종류는 기존 타입 규칙(좁은 타입부터)을 따른다. 아래 두 테스트가 짝이다.
+
+    @Test
+    @DisplayName("OPS-5-E20 상태를 받은 뒤 오류 본문을 읽다가 응답 타임아웃(HttpTimeoutException)이면 TIMEOUT, status=503 보존, 키 없음")
+    void e20_readTimeoutAfterStatusIsTimeout() {
+        HttpTimeoutException cause = new HttpTimeoutException(CAUSE_MARKER + " serviceKey=" + KEY + " " + UPPER_ENCODED);
+
+        Gov24ApiException e = Gov24Errors.ioErrorAfterStatus(cause, 503, PATH, 20, KEY);
+
+        assertThat(e.kind()).isEqualTo(Gov24ApiException.Kind.TIMEOUT);
+        assertThat(e.httpStatus()).as("httpStatus").isEqualTo(503);
+        assertThat(e.getCause()).isNull();
+        assertThat(e.getMessage()).isEqualTo("TIMEOUT status=503 path=" + PATH + " page=20 cause=java.net.http.HttpTimeoutException");
+        assertNoKey(stackTrace(e));
+    }
+
+    @Test
+    @DisplayName("OPS-5-E20 (짝) 상태를 받은 뒤라도 원인이 HttpConnectTimeoutException이면 기존 규칙대로 CONNECTION — TIMEOUT으로 분류하면 안 됨")
+    void e20_connectTimeoutAfterStatusFollowsExistingRule() {
+        Gov24ApiException e = Gov24Errors.ioErrorAfterStatus(new HttpConnectTimeoutException("x " + KEY), 503, PATH, 20, KEY);
+
+        assertThat(e.kind()).isEqualTo(Gov24ApiException.Kind.CONNECTION);
+        assertThat(e.httpStatus()).as("httpStatus").isEqualTo(503);
+        assertThat(e.getCause()).isNull();
+        assertThat(e.getMessage()).isEqualTo("CONNECTION status=503 path=" + PATH + " page=20 cause=java.net.http.HttpConnectTimeoutException");
         assertNoKey(stackTrace(e));
     }
 

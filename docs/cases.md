@@ -513,7 +513,7 @@
 | OPS-5-E13 | 실패 (잘린 본문) | 401, `{"code":-4` 다음에 연결 끊김 | E12와 같은 규칙, status=401. 잘린 JSON에서 code를 꺼내지 않음(code 칸 없음), 키 없음 | 통합 |
 | OPS-5-E14 | 실패 (잘못된 Content-Type) | 401, `Content-Type: not-a-type`, 본문 `{"code":-4,...}` | `HTTP_ERROR status=401 ... code=-4`. Spring 예외가 밖으로 나가지 않음, 키 없음 | 통합 |
 | OPS-5-E15 | 실패 (잘못된 Content-Type) | 503, 존재하지 않는 charset의 Content-Type, HTML 본문 | `HTTP_ERROR status=503`, 본문 없음, 키 없음 | 통합 |
-| OPS-5-E16 | 실패 (잘못된 Content-Type) | 200, `Content-Type: not-a-type`, 정상 JSON | 감싼 예외 종류 IO, status=200, `cause=org.springframework.http.InvalidMediaTypeException`. 그 페이지는 실패로 처리, 키 없음 | 통합 |
+| OPS-5-E16 | 실패 (잘못된 Content-Type) | 200, `Content-Type: not-a-type`, 정상 JSON | 감싼 예외 종류 IO, status=200, `cause=org.springframework.http.InvalidMediaTypeException`. 401·500처럼 감싼 예외로 수집 중단(OPS-5-F1과 같은 흐름, 재시도는 #6), 키 없음 | 통합 |
 | OPS-5-E17 | 키 노출 (헤더 값) | 401 / 503 / 200 각각, 해석할 수 없는 Content-Type 값 안에 키(원래 값·대문자 인코딩)를 넣음 | 메시지, 스택 트레이스 전체(Caused by 포함), cause 사슬 어디에도 키 네 형태 없음 | 통합 |
 | OPS-5-E18 | 키 노출 (원인 사슬) | 원인 예외(IOException, InvalidMediaTypeException) 메시지에 키가 있음 | 메시지에는 원인 클래스 이름만, cause는 null | 단위 |
 | OPS-5-E19 | 경계값 (회귀) | 401, Content-Type 헤더 없음, 본문 `{"code":-4}` | 지금처럼 `HTTP_ERROR status=401 ... code=-4` | 통합 |
@@ -521,11 +521,14 @@
 | OPS-5-B5 | 경계값 (회귀) | 200, Content-Type 값이 빈 칸, 정상 JSON | 지금처럼 오류 없이 본문 반환 | 회귀 |
 | OPS-5-N4 | 정상 (회귀) | 200, `application/json`, 한글 포함 정상 JSON | 받은 본문과 정확히 같은 문자열 | 회귀 |
 | OPS-5-N5 | 정상 (회귀) | 200 빈 본문 / 204 | 지금처럼 `null` (`""` 아님) | 회귀 |
+| OPS-5-E20 | 예외 | 상태를 받은 뒤 오류 본문을 읽다가 응답 타임아웃(`HttpTimeoutException`) | 기존 분류 규칙을 따라 종류 TIMEOUT, 상태 보존(예: `TIMEOUT status=503 ...`), 키 없음 | 단위 |
+| OPS-5-E7R | 예외 (회귀) | OPS-5-E7과 같은 200 잘린 본문 | 메시지가 `IO path=... page=... cause=...` 형식이고 status 칸이 없음, `httpStatus()`는 null | 통합 |
 
 결정 (2026-11-16, 사용자):
 - 범위: 위 케이스 전부 PR #8에서 처리.
 - 오류 응답(4xx/5xx)의 본문 읽기 실패는 종류 IO에 상태를 붙인다. 200 잘린 본문(OPS-5-E7)은 지금 그대로(status 없음), 기존 테스트 변경 없음.
 - 200 + 해석할 수 없는 Content-Type은 성공으로 보지 않고 감싼 예외(IO)로 처리.
+- 테스트 리뷰 결정: E7R·E20 추가, 상태 받은 뒤 IO 실패용 메서드는 이름을 따로 둠(`ioErrorAfterStatus`), B4·E19는 이미 구현된 동작이라 회귀로 받아들임.
 - 범위 밖: Content-Type 없는 200에서 한글이 ISO-8859-1로 읽히는 문제(별도 이슈, 실제 공공 API 헤더 확인 뒤).
 
 ## OPS-6 의존 서비스 장애 (Q-32, Q-33)
@@ -622,6 +625,8 @@
 | 2026-11-15 | OPS-5-E9, E11 (수정) | E9: 원인 메시지는 넣지 않는다는 결정과 문구를 맞춤. E11: 로그 확인을 출력 글자 모양 대신 로거에서 직접 셈 | 2-1단계 테스트 리뷰 | 사용자 |
 | 2026-11-15 | OPS-5-E5 (수정) | 설정을 무시하고 값을 고정한 구현도 통과하던 빈틈을 짝 테스트로 막음. connect-timeout 시험은 범위 밖으로 | 2-1단계 테스트 리뷰 + 메인 재검토 | 사용자 |
 | 2026-11-15 | OPS-5-E6, E7 (수정) | E6: 연결 끊김은 IO로 (자바가 끊김을 일정한 예외 종류로 주지 않음). E7: HTTP/2 업그레이드 때문에 다른 오류가 재현되던 것을 바로잡음 | 2-1단계 테스트 리뷰 | 사용자 |
+| 2026-11-16 | OPS-5-E16 (문구 확정), E7R, E20 (추가) | 테스트 리뷰: E7 결정(200엔 status 없음)을 지키는 회귀 테스트 없음, 본문 읽기 타임아웃 분류 공백, E16 의미 모호 | 테스트 리뷰 추천 | 사용자 |
+| 2026-11-16 | OPS-5-E12~E19, B4, B5, N4, N5 (추가) | PR #8 CodeRabbit 지적 3·4: 오류 본문 읽기 실패 시 상태 보존, 잘못된 Content-Type의 우회·헤더 값 노출 방어 (Spring 7.0.10 소스로 확인) | 1단계 케이스 분석 추천 | 사용자 |
 | 2026-11-14 | OPS-5-N2, N3, E3~E11, B1, B2, F1, A1 (추가) | 이슈 #4를 방어 작업으로 구체화 (현재 Spring은 URL 쿼리를 메시지에서 제거함을 소스로 확인) | 1단계 케이스 분석 추천 | 사용자 |
 | 2026-11-14 | SYNC-5-B2, SYNC-5-E1 (문구 보강) | B2: 중단된 실행은 아무것도 저장하지 않음. E1: 빈 문자열도 없음으로 봄 | 테스트 재리뷰(2차) 추천 | 사용자 |
 | 2026-11-14 | SYNC-1-E1, E3, E4, SYNC-5-E4 (수정), SYNC-5-N1, E11, B2 (추가) | 테스트 리뷰에서 나온 확인 필요 항목을 추천안대로 확정 | 테스트 리뷰(2-1단계) 추천 | 사용자 |
