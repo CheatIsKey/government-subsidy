@@ -25,15 +25,19 @@ public final class Gov24Errors {
 
     /** 응답을 받지 못했거나 읽다가 실패. cause 종류로 TIMEOUT / CONNECTION / IO를 정한다. */
     public static Gov24ApiException ioError(Throwable cause, String path, int page, String serviceKey) {
-        Gov24ApiException.Kind kind = kindOf(cause);
-        String message = kind + " path=" + path + " page=" + page + " cause=" + cause.getClass().getName();
-        return new Gov24ApiException(kind, null, path, page, null, message);
+        return io(cause, null, path, page);
     }
 
-    // 껍데기(PR #8 2단계 테스트 컴파일용, OPS-5-E18·E20). 로직 없음. 3단계에서 구현한다.
     /** HTTP 상태를 받은 뒤의 실패(오류 본문 읽기 실패, 해석할 수 없는 Content-Type). 메시지에 status를 붙인다. */
     public static Gov24ApiException ioErrorAfterStatus(Throwable cause, int status, String path, int page, String serviceKey) {
-        throw new UnsupportedOperationException("OPS-5-E18·E20 미구현");
+        return io(cause, status, path, page);
+    }
+
+    private static Gov24ApiException io(Throwable cause, Integer status, String path, int page) {
+        Gov24ApiException.Kind kind = kindOf(cause);
+        String message = kind + (status == null ? "" : " status=" + status) + " path=" + path + " page=" + page
+                + " cause=" + cause.getClass().getName();
+        return new Gov24ApiException(kind, status, path, page, null, message);
     }
 
     /** 좁은 타입부터 검사한다: HttpConnectTimeoutException은 HttpTimeoutException의 자식이다. */

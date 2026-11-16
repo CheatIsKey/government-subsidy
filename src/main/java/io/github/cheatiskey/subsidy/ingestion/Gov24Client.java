@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -39,13 +38,24 @@ public class Gov24Client implements ServiceListSource {
     @Override
     public String fetchPage(int page, int perPage) {
         try {
-            return restClient.get().uri(listUri(page, perPage)).retrieve()
-                    .onStatus(HttpStatusCode::isError, (request, response) -> {
-                        String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
-                        throw Gov24Errors.httpError(response.getStatusCode().value(), LIST_PATH, page, body,
-                                properties.serviceKey());
-                    })
-                    .body(String.class);
+            return restClient.get().uri(listUri(page, perPage)).exchange((request, response) -> {
+                int status = response.getStatusCode().value();
+                if (response.getStatusCode().isError()) {
+                    // Content-Type을 해석하지 않고 바이트로 읽는다. 읽다가 끊기면 status를 붙여 감싼다.
+                    String body;
+                    try {
+                        body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                    } catch (IOException e) {
+                        throw Gov24Errors.ioErrorAfterStatus(e, status, LIST_PATH, page, properties.serviceKey());
+                    }
+                    throw Gov24Errors.httpError(status, LIST_PATH, page, body, properties.serviceKey());
+                }
+                try {
+                    return response.bodyTo(String.class);
+                } catch (IllegalArgumentException e) { // 해석할 수 없는 Content-Type
+                    throw Gov24Errors.ioErrorAfterStatus(e, status, LIST_PATH, page, properties.serviceKey());
+                }
+            });
         } catch (RestClientException e) {
             throw Gov24Errors.ioError(ioCause(e), LIST_PATH, page, properties.serviceKey());
         }

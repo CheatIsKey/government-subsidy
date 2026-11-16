@@ -28,7 +28,10 @@ public class Gov24ApiException extends RuntimeException {
         return kind;
     }
 
-    /** HTTP 응답을 받은 경우만 값이 있다. */
+    /**
+     * HTTP 상태를 받은 경우 값이 있다(4xx/5xx 본문 읽기 실패, 200 + 해석 불가 Content-Type 포함).
+     * 200 잘린 본문처럼 응답을 받았어도 status 없이 IO로 끝나면 null.
+     */
     public Integer httpStatus() {
         return httpStatus;
     }
