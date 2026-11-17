@@ -235,6 +235,17 @@ class ServiceListCollectorRetryTest {
     }
 
     @Test
+    @DisplayName("SYNC-6-F4 200을 받은 뒤 본문 해석 실패(IO, OPS-5-E16) 4번 → 오류 상태가 아니므로 IO 규칙대로 재시도: 호출 4번, 실패 (200, IO, 4번)")
+    void f4_ioFailureAfterOkStatusIsRetried() {
+        secondPage(Gov24Errors.ioErrorAfterStatus(new IllegalArgumentException("content type"), 200, LIST_PATH, 2, KEY));
+
+        collect();
+
+        assertThat(source.calls(2)).isEqualTo(4);
+        assertThat(notifiedPage(2).failure()).isEqualTo(new PageFailure(200, "IO", 4));
+    }
+
+    @Test
     @DisplayName("SYNC-6-F11b 404 상태를 받은 뒤 본문 읽기 실패(종류 IO) → 상태 코드를 먼저 봄: 재시도 없음(호출 1번), 그 페이지만 실패 (404, IO, 1번), 3페이지 계속")
     void f11b_clientErrorStatusWithIoFailureIsNotRetried() {
         secondPage(Gov24Errors.ioErrorAfterStatus(new IOException("truncated"), 404, LIST_PATH, 2, KEY));
