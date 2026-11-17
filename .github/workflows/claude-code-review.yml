@@ -80,6 +80,7 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash # GitHub가 -eo pipefail로 실행: 리뷰 조회 중간 페이지가 실패하면 앞 페이지의 옛 승인으로 통과하지 않고 단계가 실패한다
         run: |
           # claude[bot]이 이 커밋에 낸 판정만 센다(다른 봇의 승인은 PASS로 치지 않는다)
           review=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
