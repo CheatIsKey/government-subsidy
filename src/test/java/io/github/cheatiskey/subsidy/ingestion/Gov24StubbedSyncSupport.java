@@ -10,13 +10,14 @@ import static io.github.cheatiskey.subsidy.ingestion.Gov24Fixtures.page;
 import static io.github.cheatiskey.subsidy.ingestion.ServiceKeyForms.KEY;
 import static io.github.cheatiskey.subsidy.ingestion.ServiceKeyForms.assertNoKey;
 import static io.github.cheatiskey.subsidy.ingestion.ServiceKeyForms.assertNoKeyInLongText;
-import static io.github.cheatiskey.subsidy.ingestion.ServiceKeyForms.stackTrace;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.common.Slf4jNotifier;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -45,6 +46,8 @@ abstract class Gov24StubbedSyncSupport extends SyncIntegrationTestSupport {
     static void gov24(DynamicPropertyRegistry registry) {
         registry.add("subsidy.gov24.base-url", GOV24::baseUrl);
         registry.add("subsidy.gov24.service-key", () -> KEY);
+        // SYNC-6: 재시도 간격 0s (실패 시험이 21초씩 느려지지 않게)
+        registry.add("subsidy.gov24.retry.intervals", () -> "0s,0s,0s");
     }
 
     @Autowired
@@ -69,25 +72,36 @@ abstract class Gov24StubbedSyncSupport extends SyncIntegrationTestSupport {
                 .withBody(page(page, 100, totalCount, items(from, to))));
     }
 
-    /** runFull이 감싼 예외를 던지는지 확인하고 꺼낸다. */
-    Gov24ApiException runFullFails() {
-        Throwable thrown = catchThrowable(syncService::runFull);
-        assertThat(thrown).isInstanceOf(Gov24ApiException.class);
-        return (Gov24ApiException) thrown;
+    /**
+     * 공공 API 실패에서 runFull은 예외를 던지지 않고 실패를 기록한다 (SYNC-6 1차).
+     * 끝난 실행은 FAILED 또는 PARTIAL이다.
+     */
+    SyncRunView runFullRecordsFailure() {
+        AtomicReference<SyncRunView> run = new AtomicReference<>();
+        assertThatCode(() -> run.set(syncService.runFull()))
+                .as("공공 API 실패에서 runFull은 예외를 던지지 않는다").doesNotThrowAnyException();
+        assertThat(run.get().status()).isIn(SyncRunStatus.FAILED, SyncRunStatus.PARTIAL);
+        return run.get();
     }
 
     /**
-     * OPS-5-E11 공통 확인: runFull이 감싼 예외를 던지고, 스택 트레이스와 콘솔 전체에 키가 없고,
+     * OPS-5-E11 공통 확인: runFull이 실패를 기록하고, 실패 행(message·error_code)·error_summary·콘솔 전체에 키가 없고,
      * Gov24Client·Gov24Errors·ServiceKeyMasker 로거가 남긴 로그가 TRACE까지 0건.
      */
-    void assertRunFullLeaksNoKey(CapturedOutput output) {
+    SyncRunView assertRunFullLeaksNoKey(CapturedOutput output) {
         try (LoggerSpy spy = LoggerSpy.watch(Gov24Client.class, Gov24Errors.class, ServiceKeyMasker.class)
                 .silence(FAKE_SERVER_LOGGERS)) {
-            Gov24ApiException e = runFullFails();
+            SyncRunView run = runFullRecordsFailure();
 
-            assertNoKey(stackTrace(e));
+            syncRunQueryService.failures(run.runId()).forEach(f -> {
+                assertNoKey(Objects.toString(f.message(), ""));
+                assertNoKey(Objects.toString(f.errorCode(), ""));
+            });
+            assertNoKey(Objects.toString(jdbc.queryForObject(
+                    "select error_summary from sync_run where id = ?", String.class, run.runId()), ""));
             assertNoKeyInLongText(output.getAll());
             assertThat(spy.events()).as("Gov24Client·Gov24Errors·ServiceKeyMasker 로그").isEmpty();
+            return run;
         }
     }
 }
