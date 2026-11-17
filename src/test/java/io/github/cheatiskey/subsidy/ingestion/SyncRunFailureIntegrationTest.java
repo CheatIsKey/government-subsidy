@@ -5,6 +5,7 @@ import static io.github.cheatiskey.subsidy.ingestion.Gov24Fixtures.page;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.awaitility.Awaitility.await;
@@ -170,7 +171,7 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("SYNC-6-F10 1페이지가 응답 타임아웃(TIMEOUT)으로 4번 모두 실패 → 호출 4번, FAILED SOURCE_UNAVAILABLE, 저장 없음, 예외 없음")
+    @DisplayName("SYNC-6-F10 1페이지가 응답 타임아웃(TIMEOUT)으로 4번 모두 실패 → 호출 4번, FAILED SOURCE_UNAVAILABLE, 실패 행 (LIST,1,null,TIMEOUT,4), 저장 없음, 예외 없음")
     void f10_firstPageTimeoutFailsRun() {
         AtomicInteger firstPageCalls = new AtomicInteger();
         source.use((pageNo, perPage) -> {
@@ -186,6 +187,12 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
         assertThat(firstPageCalls).hasValue(4);
         assertThat(run.get().status()).isEqualTo(SyncRunStatus.FAILED);
         assertThat(run.get().errorCode()).isEqualTo("SOURCE_UNAVAILABLE");
+        assertThat(jdbc.queryForList("""
+                select stage, page, http_status, error_code, attempt_count from sync_failure where run_id = ?""",
+                        run.get().runId()))
+                .extracting(r -> r.get("stage"), r -> r.get("page"), r -> r.get("http_status"),
+                        r -> r.get("error_code"), r -> r.get("attempt_count"))
+                .containsExactly(tuple("LIST", 1, null, "TIMEOUT", 4));
         assertThat(benefitCount()).isZero();
         assertThat(syncRunQueryService.list(20)).extracting(SyncRunView::status).containsExactly(SyncRunStatus.FAILED);
     }

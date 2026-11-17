@@ -114,7 +114,7 @@ class SyncRetryIntegrationTest extends Gov24RetrySyncSupport {
     }
 
     @Test
-    @DisplayName("SYNC-6-F10 1페이지가 재시도까지 모두 500 → 호출 4번, FAILED SOURCE_UNAVAILABLE, 저장 없음, RUNNING 남지 않음")
+    @DisplayName("SYNC-6-F10 1페이지가 재시도까지 모두 500 → 호출 4번, FAILED SOURCE_UNAVAILABLE, 실패 행 (LIST,1,500,HTTP_ERROR,4), 저장 없음, RUNNING 남지 않음")
     void f10_firstPageUnavailableFailsRun() {
         seedThreeBenefitsOfPageTwo();
         onPage(1, status(500));
@@ -124,6 +124,7 @@ class SyncRetryIntegrationTest extends Gov24RetrySyncSupport {
         assertThat(calls(1)).isEqualTo(4);
         assertThat(run.status()).isEqualTo(SyncRunStatus.FAILED);
         assertThat(run.errorCode()).isEqualTo("SOURCE_UNAVAILABLE");
+        assertSingleFailureRow(run.runId(), 1, 500, "HTTP_ERROR", 4);
         assertNothingRemoved(3);
         assertNoRunLeftRunning();
     }

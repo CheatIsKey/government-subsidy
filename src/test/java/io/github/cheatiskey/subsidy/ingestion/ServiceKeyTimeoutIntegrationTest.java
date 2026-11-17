@@ -1,6 +1,7 @@
 package io.github.cheatiskey.subsidy.ingestion;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,10 +22,13 @@ import org.springframework.test.context.TestPropertySource;
 class ServiceKeyTimeoutIntegrationTest extends Gov24StubbedSyncSupport {
 
     @Test
-    @DisplayName("OPS-5-E11 동기화 중 타임아웃 → 콘솔 전체와 스택 트레이스에 키 없음, 세 로거 로그 0건")
+    @DisplayName("OPS-5-E11 동기화 중 타임아웃 → FAILED SOURCE_UNAVAILABLE, 실패 기록(message·error_code)·error_summary·콘솔 전체에 키 없음, 세 로거 로그 0건")
     void e11_timeoutLeaksNoKey(CapturedOutput output) {
         onPage(1, aResponse().withStatus(200).withBody("{\"data\":[]}").withFixedDelay(6000));
 
-        assertRunFullLeaksNoKey(output);
+        SyncRunView run = assertRunFullLeaksNoKey(output);
+
+        assertThat(run.status()).isEqualTo(SyncRunStatus.FAILED);
+        assertThat(run.errorCode()).isEqualTo("SOURCE_UNAVAILABLE");
     }
 }

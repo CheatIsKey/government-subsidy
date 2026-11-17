@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.common.Slf4jNotifier;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,7 +86,7 @@ abstract class Gov24StubbedSyncSupport extends SyncIntegrationTestSupport {
     }
 
     /**
-     * OPS-5-E11 공통 확인: runFull이 실패를 기록하고, 실패 행(message·error_code)·error_summary·콘솔 전체에 키가 없고,
+     * OPS-5-E11 공통 확인: runFull이 실패를 기록하고(실패 행 1건 이상), 실패 행(message·error_code)·error_summary·콘솔 전체에 키가 없고,
      * Gov24Client·Gov24Errors·ServiceKeyMasker 로거가 남긴 로그가 TRACE까지 0건.
      */
     SyncRunView assertRunFullLeaksNoKey(CapturedOutput output) {
@@ -93,7 +94,9 @@ abstract class Gov24StubbedSyncSupport extends SyncIntegrationTestSupport {
                 .silence(FAKE_SERVER_LOGGERS)) {
             SyncRunView run = runFullRecordsFailure();
 
-            syncRunQueryService.failures(run.runId()).forEach(f -> {
+            List<SyncFailureView> failures = syncRunQueryService.failures(run.runId());
+            assertThat(failures).as("실패 행 (빈손 통과 방지)").isNotEmpty();
+            failures.forEach(f -> {
                 assertNoKey(Objects.toString(f.message(), ""));
                 assertNoKey(Objects.toString(f.errorCode(), ""));
             });
