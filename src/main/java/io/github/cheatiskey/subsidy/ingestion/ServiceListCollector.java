@@ -21,6 +21,13 @@ public class ServiceListCollector {
         this.source = source;
     }
 
+    // 껍데기(이슈 #6 2단계 테스트 컴파일용). 재시도 설정·sleeper·난수를 아직 쓰지 않는다. 3단계에서 구현한다.
+    /** 한 페이지 호출을 retry 설정대로 다시 부른다 (SYNC-6). random은 [0, 1) 값을 준다(무작위 지연). */
+    public ServiceListCollector(
+            ServiceListSource source, Gov24RetryProperties retry, Sleeper sleeper, java.util.function.DoubleSupplier random) {
+        this(source);
+    }
+
     /**
      * 목록을 처음부터 끝까지 모은다. 페이지 하나를 처리할 때마다 listener에 알린다
      * (실행 기록을 페이지마다 커밋하기 위해, SYNC-9-E1).
