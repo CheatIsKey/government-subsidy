@@ -7,6 +7,7 @@ import static io.github.cheatiskey.subsidy.ingestion.ServiceKeyForms.KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.Assertions.within;
 
 import java.io.IOException;
@@ -258,6 +259,36 @@ class ServiceListCollectorRetryTest {
         assertThat(source.calls(2)).isEqualTo(1);
         assertThat(slept).isEmpty();
         assertThat(source.requestedPages).containsExactly(1, 2);
+    }
+
+    @ParameterizedTest(name = "[{index}] HTTP {0}")
+    @ValueSource(ints = {401, 403})
+    @DisplayName("SYNC-6-F1b 401·403 상태를 받은 뒤 본문 읽기 실패(종류 IO) → 상태 코드를 먼저 봄: 재시도 없음(호출 1번), 멈춤 AUTH_FAILED, 실패 (401|403, IO, 1번)")
+    void f1b_authStatusWithIoFailureStopsWithoutRetry(int status) {
+        secondPage(Gov24Errors.ioErrorAfterStatus(new IOException("truncated"), status, LIST_PATH, 2, KEY));
+
+        ListCollectionResult result = collect();
+
+        assertThat(source.calls(2)).isEqualTo(1);
+        assertThat(slept).isEmpty();
+        assertThat(source.requestedPages).containsExactly(1, 2);
+        assertThat(result.stop().errorCode()).isEqualTo("AUTH_FAILED");
+        assertThat(notifiedPage(2).failure()).isEqualTo(new PageFailure(status, "IO", 1));
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F10b (회귀) 1페이지 404 → 재시도 없음(호출 1번), 전체 건수를 몰라 멈춤 SOURCE_UNAVAILABLE, 실패 1건 (404, HTTP_ERROR, 1번)")
+    void f10b_firstPageNotFoundStopsAsSourceUnavailable() {
+        source.on(1, http(404, 1));
+
+        ListCollectionResult result = collect();
+
+        assertThat(source.requestedPages).containsExactly(1);
+        assertThat(slept).isEmpty();
+        assertThat(result.stop().errorCode()).isEqualTo("SOURCE_UNAVAILABLE");
+        assertThat(result.failedPages()).containsExactly(1);
+        assertThat(notified).extracting(CollectedPage::page, CollectedPage::failure)
+                .containsExactly(tuple(1, new PageFailure(404, "HTTP_ERROR", 1)));
     }
 
     @ParameterizedTest(name = "[{index}] {0}")

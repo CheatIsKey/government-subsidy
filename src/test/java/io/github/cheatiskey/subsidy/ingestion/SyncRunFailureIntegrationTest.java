@@ -170,6 +170,50 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
         assertSingleRunFailedInternally();
     }
 
+    /**
+     * runFull을 돌려 예외를 다시 던지게 하고, 앱 전체 ERROR 로그가 정확히 1건이며
+     * 예외 클래스 이름·실행 번호(run=n)만 있고 예외 메시지·키는 없는지, error_summary가 예외 클래스 이름인지 본다.
+     */
+    private void assertInternalErrorLoggedOnce(RuntimeException error) {
+        List<String> errors;
+        try (Gov24RetrySyncSupport.Logs logs = Gov24RetrySyncSupport.Logs.watch()) {
+            assertThat(catchThrowable(syncService::runFull)).isSameAs(error);
+            errors = logs.at(ch.qos.logback.classic.Level.ERROR);
+        }
+        long runId = syncRunQueryService.list(1).get(0).runId();
+
+        assertThat(errors).as("앱 전체 ERROR 로그").hasSize(1);
+        assertThat(errors.get(0))
+                .contains(error.getClass().getSimpleName(), "run=" + runId)
+                .doesNotContain(error.getMessage(), "test-service-key");
+        assertThat(jdbc.queryForObject("select error_summary from sync_run where id = ?", String.class, runId))
+                .isEqualTo(error.getClass().getName());
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("nonApiErrors")
+    @DisplayName("SYNC-6-F12 목록 공급자의 공공 API가 아닌 예외 → ERROR 로그 1건(예외 클래스 이름·실행 번호만, 예외 메시지·키 없음), error_summary는 예외 클래스 이름")
+    void f12_unexpectedErrorLogsOnceWithoutMessage(RuntimeException error) {
+        source.use((pageNo, perPage) -> {
+            if (pageNo == 2) {
+                throw error;
+            }
+            return page(pageNo, 100, 250, items(1, 100));
+        });
+
+        assertInternalErrorLoggedOnce(error);
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F12 저장 단계(BenefitWriter.write)의 DB 오류 → ERROR 로그 1건(예외 클래스 이름·실행 번호만, 예외 메시지·키 없음), error_summary는 예외 클래스 이름")
+    void f12_writerDbErrorLogsOnceWithoutMessage() {
+        DataAccessResourceFailureException error = new DataAccessResourceFailureException("DB 연결 끊김");
+        doThrow(error).when(benefitWriter).write(any(), any());
+        source.use((pageNo, perPage) -> page(1, 100, 20, items(1, 20)));
+
+        assertInternalErrorLoggedOnce(error);
+    }
+
     @Test
     @DisplayName("SYNC-6-F10 1페이지가 응답 타임아웃(TIMEOUT)으로 4번 모두 실패 → 호출 4번, FAILED SOURCE_UNAVAILABLE, 실패 행 (LIST,1,null,TIMEOUT,4), 저장 없음, 예외 없음")
     void f10_firstPageTimeoutFailsRun() {
