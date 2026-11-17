@@ -234,6 +234,33 @@ class ServiceListCollectorRetryTest {
         assertThat(notifiedPage(2).failure()).isEqualTo(new PageFailure(502, "IO", 4));
     }
 
+    @Test
+    @DisplayName("SYNC-6-F11b 404 상태를 받은 뒤 본문 읽기 실패(종류 IO) → 상태 코드를 먼저 봄: 재시도 없음(호출 1번), 그 페이지만 실패 (404, IO, 1번), 3페이지 계속")
+    void f11b_clientErrorStatusWithIoFailureIsNotRetried() {
+        secondPage(Gov24Errors.ioErrorAfterStatus(new IOException("truncated"), 404, LIST_PATH, 2, KEY));
+
+        ListCollectionResult result = collect();
+
+        assertThat(source.calls(2)).isEqualTo(1);
+        assertThat(source.calls(3)).isEqualTo(1);
+        assertThat(slept).isEmpty();
+        assertThat(result.failedPages()).containsExactly(2);
+        assertThat(notifiedPage(2).failure()).isEqualTo(new PageFailure(404, "IO", 1));
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F11b (짝) 503 상태를 받은 뒤 본문 읽기 실패(종류 IO) → 재시도 대상: 호출 4번, 실패 (503, IO, 4번), 3페이지 계속")
+    void f11b_serverErrorStatusWithIoFailureIsRetried() {
+        secondPage(Gov24Errors.ioErrorAfterStatus(new IOException("truncated"), 503, LIST_PATH, 2, KEY));
+
+        ListCollectionResult result = collect();
+
+        assertThat(source.calls(2)).isEqualTo(4);
+        assertThat(source.calls(3)).isEqualTo(1);
+        assertThat(result.failedPages()).containsExactly(2);
+        assertThat(notifiedPage(2).failure()).isEqualTo(new PageFailure(503, "IO", 4));
+    }
+
     @ParameterizedTest(name = "[{index}] HTTP {0}")
     @ValueSource(ints = {400, 404})
     @DisplayName("SYNC-6-F11 401·403을 뺀 4xx → 재시도 없음(호출 1번), 그 페이지만 실패 기록(attempt=1) 후 3페이지 계속")

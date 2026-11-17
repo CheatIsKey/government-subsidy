@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.awaitility.Awaitility.await;
 
@@ -70,6 +72,9 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
 
     @MockitoSpyBean
     BenefitWriter benefitWriter;
+
+    @MockitoSpyBean
+    SyncRunRecorder recorder;
 
     private final CountDownLatch release = new CountDownLatch(1);
     private CompletableFuture<SyncRunView> background;
@@ -182,12 +187,18 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
         }
         long runId = syncRunQueryService.list(1).get(0).runId();
 
-        assertThat(errors).as("앱 전체 ERROR 로그").hasSize(1);
-        assertThat(errors.get(0))
-                .contains(error.getClass().getSimpleName(), "run=" + runId)
-                .doesNotContain(error.getMessage(), "test-service-key");
+        assertSingleErrorLog(errors, error, runId);
         assertThat(jdbc.queryForObject("select error_summary from sync_run where id = ?", String.class, runId))
                 .isEqualTo(error.getClass().getName());
+    }
+
+    /** ERROR 로그가 정확히 1건이고, 예외 클래스 이름과 실행 번호(run=n, 뒤에 숫자가 더 붙지 않음)만 있고 예외 메시지·키는 없다. */
+    private static void assertSingleErrorLog(List<String> errors, RuntimeException error, long runId) {
+        assertThat(errors).as("앱 전체 ERROR 로그").hasSize(1);
+        assertThat(errors.get(0))
+                .contains(error.getClass().getSimpleName())
+                .containsPattern("\\brun=" + runId + "(?!\\d)")
+                .doesNotContain(error.getMessage(), "test-service-key");
     }
 
     @ParameterizedTest(name = "[{index}] {0}")
@@ -212,6 +223,32 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
         source.use((pageNo, perPage) -> page(1, 100, 20, items(1, 20)));
 
         assertInternalErrorLoggedOnce(error);
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F12b 공급자 예외 뒤 INTERNAL_ERROR 기록(finish)마저 실패 → 원래 예외를 던지고 기록 실패는 suppressed, ERROR 로그 1건(클래스 이름·run=n, 메시지·키 없음)")
+    void f12b_finishFailureIsSuppressedIntoOriginalError() {
+        IllegalStateException error = new IllegalStateException("예상 못 한 오류");
+        DataAccessResourceFailureException finishError = new DataAccessResourceFailureException("기록 실패");
+        doThrow(finishError).when(recorder)
+                .finish(anyLong(), argThat(outcome -> "INTERNAL_ERROR".equals(outcome.errorCode())), any());
+        source.use((pageNo, perPage) -> {
+            if (pageNo == 2) {
+                throw error;
+            }
+            return page(pageNo, 100, 250, items(1, 100));
+        });
+
+        Throwable thrown;
+        List<String> errors;
+        try (Gov24RetrySyncSupport.Logs logs = Gov24RetrySyncSupport.Logs.watch()) {
+            thrown = catchThrowable(syncService::runFull);
+            errors = logs.at(ch.qos.logback.classic.Level.ERROR);
+        }
+
+        assertThat(thrown).isSameAs(error);
+        assertThat(thrown.getSuppressed()).containsExactly(finishError);
+        assertSingleErrorLog(errors, error, syncRunQueryService.list(1).get(0).runId());
     }
 
     @Test
