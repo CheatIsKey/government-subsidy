@@ -4,8 +4,9 @@
 # 하나라도 실패하면 종료 코드 1. 외부 의존성 없음.
 # jq가 필요한 테스트(리뷰 선택 단위, 가짜 gh)는 jq가 없으면 skip하지 않고 "jq 없음"으로 실패한다.
 #
-# 자동 테스트 대상이 아닌 케이스 (병합 뒤 수동 확인):
-#   REVIEW-GATE-S1, REVIEW-GATE-F9, REVIEW-GATE-C1, REVIEW-GATE-C2, REVIEW-GATE-R2
+# 자동 테스트 대상이 아닌 케이스:
+#   병합 뒤 수동 확인: REVIEW-GATE-S1, REVIEW-GATE-F9, REVIEW-GATE-C1, REVIEW-GATE-R2
+#   검증 불가: REVIEW-GATE-C2
 
 set -u
 
@@ -128,8 +129,9 @@ b_B12() {  # $1 = F 상태
   BODY="PASS: 요약"$'\n'"-n"$'\n'"-e"$'\n'"--help"$'\n'"\\"$'\n'"$cmd"$'\n'"$CL"
 }
 b_B13() { make_body "A 보안:" "$1"; }
-b_S3() {  # $1 = A 상태
-  checklist "A 보안:" "A 보안: $1 — ::error::INJECT3 ::add-mask::INJECT1"
+b_B13_crlf() { make_body "A 보안:" "A 보안: 확인함 — "; to_crlf; }
+b_S3() {  # $1 = A 상태. 근거 안의 \r 뒤에도 명령을 숨긴다
+  checklist "A 보안:" "A 보안: $1 — ::error::INJECT3 ::add-mask::INJECT1"$'\r'"::add-mask::INJECT5"
   BODY="PASS: 요약"$'\n'"::add-mask::INJECT1"$'\n'"::warning::INJECT2"$'\n'"::error::INJECT3"$'\n'"::stop-commands::INJECT4"$'\n'"$CL"
 }
 
@@ -165,8 +167,8 @@ run_test "REVIEW-GATE-E9 NONE → 판정 없음" t_state NONE "판정 없음"
 run_test "REVIEW-GATE-E10 COMMENTED → 판정 없음" t_state COMMENTED "판정 없음"
 run_test "REVIEW-GATE-E10 빈 문자열 → 판정 없음" t_state "" "판정 없음"
 run_test "REVIEW-GATE-E10 소문자 approved → 판정 없음" t_state approved "판정 없음"
-t_no_arg() { b_N1; check; expect_fail; }
-run_test "REVIEW-GATE-E10 인자 없음 → 1" t_no_arg
+t_no_arg() { b_N1; check; expect_fail "판정 없음"; }
+run_test "REVIEW-GATE-E10 인자 없음 → 판정 없음" t_no_arg
 
 run_test "REVIEW-GATE-E11 줄 머리가 문장 중간에만 → 누락" t_fail "A 보안|0줄" b_E11
 run_test "REVIEW-GATE-E12 문장 중간의 'A 보안: 문제'는 세지 않음" t_pass b_E12
@@ -176,11 +178,16 @@ run_test "REVIEW-GATE-E14 한 줄에 두 항목, B 줄 없음 → B 누락" t_fa
 # ---------- 단위: 경계 ----------
 run_test "REVIEW-GATE-B1 줄 앞 공백" t_pass b_B1 "  "
 run_test "REVIEW-GATE-B1 줄 앞 탭" t_pass b_B1 $'\t'
-run_test "REVIEW-GATE-B1 줄 앞 '-'" t_pass b_B1 "-"
-run_test "REVIEW-GATE-B1 줄 앞 '*'" t_pass b_B1 "*"
 run_test "REVIEW-GATE-B1 줄 앞 '- '" t_pass b_B1 "- "
+run_test "REVIEW-GATE-B1 줄 앞 '* '" t_pass b_B1 "* "
+run_test "REVIEW-GATE-B1 줄 앞 들여쓴 '  - '" t_pass b_B1 "  - "
 
+# 목록 기호는 '- ' 또는 '* ' 한 개만(기호 뒤 공백 필수). 그 밖의 서식은 거부
 run_test "REVIEW-GATE-B2 굵게 서식 거부" t_fail "A 보안" b_B2 "**A 보안:** 확인함 — x"
+run_test "REVIEW-GATE-B2 줄 전체 굵게 거부" t_fail "A 보안" b_B2 "**A 보안: 확인함 — x**"
+run_test "REVIEW-GATE-B2 기호 뒤 공백 없음 '-' 거부" t_fail "A 보안" b_B2 "-A 보안: 확인함 — x"
+run_test "REVIEW-GATE-B2 기호 뒤 공백 없음 '*' 거부" t_fail "A 보안" b_B2 "*A 보안: 확인함 — x"
+run_test "REVIEW-GATE-B2 기호 두 개 '- - ' 거부" t_fail "A 보안" b_B2 "- - A 보안: 확인함 — x"
 run_test "REVIEW-GATE-B2 번호 서식 거부" t_fail "A 보안" b_B2 "1. A 보안: 확인함 — x"
 run_test "REVIEW-GATE-B2 인용 서식 거부" t_fail "A 보안" b_B2 "> A 보안: 확인함 — x"
 run_test "REVIEW-GATE-B2 표 서식 거부" t_fail "A 보안" b_B2 "| A 보안: 확인함 — x |"
@@ -201,8 +208,14 @@ run_test "REVIEW-GATE-B7 CRLF, 상태 비움" t_fail "A 보안" b_B7
 run_test "REVIEW-GATE-B8 끝에 줄바꿈 없음" t_pass b_B8
 run_test "REVIEW-GATE-B9 줄 머리에 NBSP → 누락" t_fail "A 보안|0줄" b_B9 $'A\xc2\xa0보안:'
 run_test "REVIEW-GATE-B9 줄 머리에 전각 공백 → 누락" t_fail "A 보안|0줄" b_B9 $'A\xe3\x80\x80보안:'
-run_test "REVIEW-GATE-B10 APPROVED인데 첫 줄 BLOCK:" t_fail "" b_B10 "BLOCK: 요약"
-run_test "REVIEW-GATE-B10 APPROVED인데 첫 줄이 PASS:로 시작하지 않음" t_fail "" b_B10 "요약: 문제 없음"
+# B10: 점검표가 맞은 뒤 첫 줄(앞 빈 줄은 건너뜀)이 'PASS:'(대문자, 앞 공백 없음)로 시작해야 한다
+run_test "REVIEW-GATE-B10 APPROVED인데 첫 줄 BLOCK:" t_fail "첫 줄" b_B10 "BLOCK: 요약"
+run_test "REVIEW-GATE-B10 APPROVED인데 첫 줄이 PASS:로 시작하지 않음" t_fail "첫 줄" b_B10 "요약: 문제 없음"
+run_test "REVIEW-GATE-B10 첫 줄 'PASS 요약'(콜론 없음)" t_fail "첫 줄" b_B10 "PASS 요약"
+run_test "REVIEW-GATE-B10 첫 줄 소문자 'pass:'" t_fail "첫 줄" b_B10 "pass: 요약"
+run_test "REVIEW-GATE-B10 첫 줄 앞 공백 ' PASS:'" t_fail "첫 줄" b_B10 " PASS: 요약"
+run_test "REVIEW-GATE-B10 첫 줄 '요약', 둘째 줄 'PASS:'" t_fail "첫 줄" b_B10 "요약"$'\n'"PASS: x"
+run_test "REVIEW-GATE-B10 본문 앞 빈 줄 뒤 'PASS:' → 통과" t_pass b_B10 $'\n'"PASS: 요약"
 run_test "REVIEW-GATE-B11 정규식 특수문자, 정상 상태 → 통과" t_pass b_B11 "확인함"
 run_test "REVIEW-GATE-B11 정규식 특수문자, 상태 '문제' → 실패" t_fail "A 보안" b_B11 "문제"
 
@@ -218,18 +231,25 @@ run_test "REVIEW-GATE-B12 '-' 줄·백슬래시·\$(...) 실행 없음, 실패" 
 run_test "REVIEW-GATE-B13 근거 없음" t_fail "A 보안" b_B13 "A 보안: 확인함"
 run_test "REVIEW-GATE-B13 짧은 대시" t_fail "A 보안" b_B13 "A 보안: 확인함 - x"
 run_test "REVIEW-GATE-B13 대시 뒤 근거 비움" t_fail "A 보안" b_B13 "A 보안: 확인함 — "
+run_test "REVIEW-GATE-B13 근거가 공백뿐" t_fail "A 보안" b_B13 "A 보안: 확인함 —    "
+run_test "REVIEW-GATE-B13 en dash '–'" t_fail "A 보안" b_B13 "A 보안: 확인함 – x"
+run_test "REVIEW-GATE-B13 '--'" t_fail "A 보안" b_B13 "A 보안: 확인함 -- x"
+run_test "REVIEW-GATE-B13 대시 앞뒤 붙여 씀 '확인함—x'" t_fail "A 보안" b_B13 "A 보안: 확인함—x"
+run_test "REVIEW-GATE-B13 대시 뒤 붙여 씀 '확인함 —x'" t_fail "A 보안" b_B13 "A 보안: 확인함 —x"
+run_test "REVIEW-GATE-B13 CRLF, 대시 뒤 근거 비움" t_fail "A 보안" b_B13_crlf
 
 # ---------- 단위: 권한 ----------
-# S3: 출력의 '::' 줄은 스크립트 자신의 '::error::'뿐이고, 본문에서 온 명령(INJECT)이 줄 머리에 오지 않는다
+# S3: 출력을 \r·\n으로 나눈 어느 줄도 본문에서 온 명령(INJECT)으로 시작하지 않는다.
+#     '::' 줄은 스크립트 자신의 '::error::'뿐이어야 한다
 no_injected_command() {
-  local line
+  local line out=${OUT//$'\r'/$'\n'}
   while IFS= read -r line; do
     case $line in
       '::error::INJECT'*|'::error:: INJECT'*) fail "본문의 명령이 줄 머리로 나옴: $line" ;;
       '::error::'*) ;;
       '::'*) fail "본문의 명령이 줄 머리로 나옴: $line" ;;
     esac
-  done <<< "$OUT"
+  done <<< "$out"
 }
 t_s3() {  # t_s3 <A 상태> pass|fail
   b_S3 "$1"; check APPROVED
@@ -241,7 +261,8 @@ run_test "REVIEW-GATE-S3 워크플로 명령 흉내, 실패 본문(줄을 메시
 
 # ---------- 단위: 회귀 R1 ----------
 # 분리 전 "판정 확인" 단계 인라인 코드(claude-code-review.yml, 커밋 42a1c74)를 그대로 옮긴 기준.
-# B2·B4·B10·B13은 일부러 바꾸는 동작이라 비교 대상에서 뺀다.
+# 일부러 바꾸는 동작은 비교 대상에서 뺀다: B2 전부(줄 전체 굵게, 기호 뒤 공백 없는 '-'·'*' 포함),
+# B4, B10 전부(새 입력 포함), B13 전부(새 입력 포함).
 inline_reference() (
   state=$1; body=$(cat)
   case "$state" in
@@ -268,7 +289,7 @@ R1_CORPUS=(
   "b_E1 0" "b_E1 1" "b_E1 2" "b_E1 3" "b_E1 4" "b_E1 5"
   "b_E2" "b_E3" "b_E4 0" "b_E4 5" "b_E6 OK" "b_E6 확인" "b_E7"
   "b_E11" "b_E12" "b_E13" "b_E14"
-  "b_B1 -" "b_B1 *" "b_B3 A 보안:확인함 — x"
+  "b_B3 A 보안:확인함 — x"
   "b_B5" "b_B6" "b_B7" "b_B8" "b_B11 확인함" "b_B11 문제" "b_B12 확인함" "b_B12 문제"
   "b_S3 확인함" "b_S3 문제"
 )
@@ -303,8 +324,10 @@ select_reviews() {
 }
 C='claude[bot]'
 
-t_s2() { need_jq || return
-  select_reviews "[$(rv 1 'coderabbitai[bot]' APPROVED $SHA),$(rv 2 alice APPROVED $SHA)]"
+t_s2() { need_jq || return  # t_s2 <로그인>...  — 각 로그인의 APPROVED만 있음
+  local login reviews="" id=0
+  for login in "$@"; do id=$((id + 1)); reviews+="${reviews:+,}$(rv $id "$login" APPROVED $SHA)"; done
+  select_reviews "[$reviews]"
   assert_eq "$OUT" "null" "선택 결과"; }
 t_f1() { need_jq || return
   select_reviews "[$(rv 1 "$C" APPROVED $SHA),$(rv 2 "$C" CHANGES_REQUESTED $SHA)]"
@@ -331,7 +354,9 @@ t_f8() { need_jq || return
   select_reviews "[$(rv 1 "$C" APPROVED $SHA 'PASS: 첫 제출'),$(rv 2 "$C" APPROVED $SHA 'PASS: 두 번째 제출')]"
   assert_eq "$OUT" '{"id":2,"state":"APPROVED","body":"PASS: 두 번째 제출"}' "선택 결과"; }
 
-run_test "REVIEW-GATE-S2 다른 봇·사람의 APPROVED만 → null" t_s2
+run_test "REVIEW-GATE-S2 다른 봇·사람의 APPROVED만 → null" t_s2 'coderabbitai[bot]' alice
+run_test "REVIEW-GATE-S2 사람 'claude'의 APPROVED만 → null" t_s2 claude
+run_test "REVIEW-GATE-S2 'claude-impostor[bot]'의 APPROVED만 → null" t_s2 'claude-impostor[bot]'
 run_test "REVIEW-GATE-F1 APPROVED → CHANGES_REQUESTED, 마지막 것" t_f1
 run_test "REVIEW-GATE-F2 CHANGES_REQUESTED → APPROVED, 마지막 APPROVED와 본문" t_f2
 run_test "REVIEW-GATE-F3 다른 커밋의 APPROVED만 → null" t_f3
@@ -344,7 +369,7 @@ run_test "REVIEW-GATE-F8 같은 커밋에 두 번 제출, 마지막 것" t_f8
 # ---------- 가짜 gh (jq 필요) ----------
 # make_fake_gh "<gh가 할 일(bash)>"  — 받은 인자를 gh-args에 남긴다
 make_fake_gh() {
-  mkdir -p "$TMPD/bin"
+  mkdir -p "$TMPD/bin"; rm -f "$TMPD/gh-args"
   printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" > "%s/gh-args"\n%s\n' "$TMPD" "$1" > "$TMPD/bin/gh"
   chmod +x "$TMPD/bin/gh"
 }
@@ -357,9 +382,7 @@ t_fetch_ok() { need_jq || return
   fetch
   assert_eq "$CODE" 0 "종료 코드"
   assert_eq "$(printf '%s' "$OUT" | jq -c '{id,state}' 2>&1)" '{"id":2,"state":"CHANGES_REQUESTED"}' "출력"
-  local args; args=$(cat "$TMPD/gh-args" 2>/dev/null)
-  [[ $args == *"api repos/o/r/pulls/7/reviews"* && $args == *"--paginate"* && $args != *"--jq"* ]] \
-    || fail "gh 인자: 기대 [api repos/o/r/pulls/7/reviews --paginate, --jq 없음], 실제 [$args]"
+  assert_eq "$(cat "$TMPD/gh-args" 2>/dev/null)" "api repos/o/r/pulls/7/reviews --paginate" "gh 인자"
 }
 t_f6() { need_jq || return
   make_fake_gh "printf '%s\n' '$PAGE1'; exit 1"
@@ -369,11 +392,11 @@ t_f6() { need_jq || return
 t_f7() { need_jq || return
   make_fake_gh "echo '<html>rate limited</html>'"
   fetch
-  [ "$CODE" -ne 0 ] || fail "종료 코드: 기대 [0이 아님], 실제 [$CODE], 출력 [$OUT]"
+  assert_eq "$CODE" 1 "종료 코드"
 }
 run_test "REVIEW-GATE-F6 대조: 모든 페이지 성공 → 마지막 판정 출력, gh 인자" t_fetch_ok
 run_test "REVIEW-GATE-F6 1페이지 출력 뒤 gh 실패 → 0이 아닌 종료" t_f6
-run_test "REVIEW-GATE-F7 gh가 JSON 아닌 값 출력 → 0이 아닌 종료" t_f7
+run_test "REVIEW-GATE-F7 gh가 JSON 아닌 값 출력 → 종료 코드 1" t_f7
 
 # ---------- 결과 ----------
 echo
