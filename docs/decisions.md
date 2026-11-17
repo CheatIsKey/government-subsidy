@@ -43,3 +43,4 @@
 | 2026-11-15 | 예외 종류는 메시지 글자가 아니라 타입 규칙으로 나눈다: `HttpConnectTimeoutException`·`ConnectException` → CONNECTION, 그 밖의 `HttpTimeoutException` → TIMEOUT, 나머지 I/O(응답 헤더 전 끊김 포함) → IO. 좁은 타입부터 검사 | `HttpConnectTimeoutException`은 `HttpTimeoutException`의 자식이라 순서를 틀리면 TIMEOUT으로 잘못 분류됨 | — |
 | 2026-11-15 | 본문에서 꺼낸 공공 API `code`는 가린 값 그대로 `apiCode` 칸에도 넣는다 | 메시지만 가리고 칸을 안 가리면 #6에서 DB·로그로 새는 우회 경로가 생김 | — |
 | 2026-11-15 | HTTP/1.1 고정은 "정상 호출에 `Upgrade` 헤더가 없음"으로 테스트한다. E7은 직접 만든 HTTP/1.1 서버(`TruncatedBodyServer`)로 재현한다 | WireMock은 Content-Length를 실제 길이로 고쳐서 잘린 본문을 못 만든다 | — |
+| 2026-11-17 | Claude PR 리뷰(필수 검사)는 엄격 기준으로 판정한다: 확인된 문제가 하나라도 있으면(문서·코드 불일치 포함) BLOCK, 점검표 A 보안·B 정확성·C TDD·D 요구사항·E 문서·F 결정을 PASS 본문에 각각 한 줄로 적고 상태는 "확인함" 또는 "해당 없음"만 PASS, PR 본문·문서의 주장은 코드와 커밋 이력으로 확인, 판정은 `claude[bot]` 리뷰만 센다, 리뷰 모델은 opus (사용자 승인, PR #11) | PR #8·#10에서 PASS만 8번 나오는 동안 CodeRabbit이 실제로 맞는 지적을 8건 냈다. 옛 판정 확인은 다른 봇의 승인도 PASS로 셀 수 있었다 | BLOCK 오탐이 많아 작업이 막힐 때 |

@@ -90,17 +90,20 @@ jobs:
           echo "이 커밋($HEAD_SHA)에 대한 Claude 판정: $state"
           case "$state" in
             APPROVED)
-              # PASS 본문에 점검표 A~F가 모두 있어야 인정한다
+              # PASS 본문의 점검표 A~F는 각각 정확히 한 줄이고, 상태가 "확인함" 또는 "해당 없음"이어야 인정한다
+              # ("문제", "확인 못 함", 항목 누락, 중복은 모두 거부. 줄 앞의 목록 기호 -, * 와 공백은 허용)
               for item in "A 보안:" "B 정확성:" "C TDD:" "D 요구사항:" "E 문서:" "F 결정:"; do
-                if ! grep -qF "$item" <<< "$body"; then
-                  echo "::error::PASS 본문에 점검표 '$item' 항목이 없습니다. 무엇을 확인했는지 없는 PASS는 인정하지 않습니다."
+                lines=$(grep -E "^[[:space:]*-]*${item}" <<< "$body" || true)
+                count=$(grep -c . <<< "$lines" || true)
+                if [ -z "$lines" ] || [ "$count" -ne 1 ]; then
+                  echo "::error::PASS 본문에 점검표 '$item' 줄이 정확히 한 줄 있어야 합니다(지금 ${count:-0}줄)."
+                  exit 1
+                fi
+                if ! grep -qE "^[[:space:]*-]*${item}[[:space:]]*(확인함|해당 없음)" <<< "$lines"; then
+                  echo "::error::'$item' 상태가 '확인함' 또는 '해당 없음'이 아닌데 PASS했습니다. 기준상 BLOCK입니다: $lines"
                   exit 1
                 fi
               done
-              if grep -qF "확인 못 함" <<< "$body"; then
-                echo "::error::점검표에 '확인 못 함'이 있는데 PASS했습니다. 기준상 BLOCK입니다."
-                exit 1
-              fi
               echo "PASS" ;;
             CHANGES_REQUESTED) echo "::error::BLOCK — Claude가 수정을 요청했습니다. PR의 리뷰 댓글을 확인하세요."; exit 1 ;;
             *) echo "::error::판정 없음 — Claude 리뷰가 실행되지 않았거나 판정을 제출하지 않았습니다."; exit 1 ;;
