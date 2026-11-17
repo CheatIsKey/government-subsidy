@@ -101,8 +101,11 @@ public class ServiceListCollector {
         return Duration.ofNanos(Math.round(interval.toNanos() * (1 + JITTER_RATIO * random.getAsDouble())));
     }
 
-    /** 재시도 대상: HTTP 5xx·429·408, TIMEOUT, CONNECTION, IO. */
+    /** 재시도 대상: HTTP 5xx·429·408, TIMEOUT, CONNECTION, IO. 401·403은 종류와 상관없이 제외 (SYNC-6-F1b). */
     private static boolean isRetryable(Gov24ApiException e) {
+        if (isAuthFailure(e)) {
+            return false;
+        }
         if (e.kind() != Gov24ApiException.Kind.HTTP_ERROR) {
             return true;
         }
@@ -110,8 +113,10 @@ public class ServiceListCollector {
         return status >= 500 || status == 429 || status == 408;
     }
 
+    /** 상태 코드를 먼저 본다: 401·403이면 본문 읽기 실패(IO)여도 인증 실패 (SYNC-6-F1b). */
     private static boolean isAuthFailure(Gov24ApiException e) {
-        return e.kind() == Gov24ApiException.Kind.HTTP_ERROR && (e.httpStatus() == 401 || e.httpStatus() == 403);
+        Integer status = e.httpStatus();
+        return status != null && (status == 401 || status == 403);
     }
 
     /** 401·403이면 AUTH_FAILED, 아니면 otherwise. */

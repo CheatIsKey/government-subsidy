@@ -79,6 +79,8 @@ public class SyncService {
             transaction.executeWithoutResult(status -> recorder.finish(runId, apply(runId, collected), clock.instant()));
         } catch (RuntimeException e) {
             recorder.finish(runId, SyncOutcome.failed("INTERNAL_ERROR", e.getClass().getName(), null, 0), clock.instant());
+            // 예외 메시지에 키가 있을 수 있어 클래스 이름만 남기고 예외 객체는 붙이지 않는다 (SYNC-6-F12).
+            log.error("동기화 run={} 공공 API가 아닌 예외로 중단: {}", runId, e.getClass().getName());
             throw e;
         }
         return queryService.find(runId).orElseThrow();
