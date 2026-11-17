@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: PR 리뷰 판정 확인 스크립트 테스트 (REVIEW-GATE)
+        run: bash .github/scripts/test-review-gate.sh
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
