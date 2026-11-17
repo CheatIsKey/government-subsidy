@@ -70,7 +70,9 @@ jobs:
             5. 판정을 정확히 한 번 제출한다. 본문 첫 줄은 PASS: 또는 BLOCK: 으로 시작하고, 그 아래에 점검표를 빠짐없이 적는다.
                항목마다 한 줄, 줄 머리는 아래 여섯 개를 글자 그대로 쓴다(판정 확인 단계가 이 글자를 검사한다):
                `A 보안:`, `B 정확성:`, `C TDD:`, `D 요구사항:`, `E 문서:`, `F 결정:`
-               각 줄 형식: `<줄 머리> 확인함 | 해당 없음 | 문제 | 확인 못 함 — <근거: 본 파일·커밋·줄>`
+               각 줄 형식: `<줄 머리> <상태> — <근거>`. 상태 자리에는 확인함, 확인함(문제 없음), 해당 없음, 문제, 확인 못 함 중 **하나만** 쓴다.
+               대시는 긴 대시(—) 하나를 앞뒤 공백과 함께 쓰고, 근거(본 파일·커밋·줄)를 반드시 적는다. 예: `B 정확성: 확인함 — Gov24Client.java:44~58 예외 경로 확인`
+               점검표 줄은 굵게·번호·인용·표 같은 서식 없이 쓴다(줄 앞에는 `- ` 하나까지만 허용). 판정 확인 단계는 PASS 본문에서 상태가 확인함·확인함(문제 없음)·해당 없음인 줄만 인정한다.
                - PASS  → gh pr review ${{ github.event.pull_request.number }} --approve --body "<본문>"
                - BLOCK → gh pr review ${{ github.event.pull_request.number }} --request-changes --body "<본문>"
 
@@ -80,32 +82,20 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        shell: bash # GitHub가 -eo pipefail로 실행: 리뷰 조회 중간 페이지가 실패하면 앞 페이지의 옛 승인으로 통과하지 않고 단계가 실패한다
+          BASE_REF: ${{ github.base_ref }}
+        shell: bash # GitHub가 -eo pipefail로 실행: 조회·검사 중 어느 단계든 실패하면 이 단계가 실패한다
         run: |
-          # claude[bot]이 이 커밋에 낸 판정만 센다(다른 봇의 승인은 PASS로 치지 않는다)
-          review=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-            --jq ".[] | select(.user.login == \"claude[bot]\" and .commit_id == \"$HEAD_SHA\" and (.state == \"APPROVED\" or .state == \"CHANGES_REQUESTED\"))" \
-            | jq -s 'last')
+          # 판정 스크립트는 PR 쪽이 아니라 기준 브랜치(dev) 원본을 꺼내 쓴다.
+          # PR이 스크립트를 exit 0으로 고쳐 필수 검사를 우회하지 못하게 한다 (REVIEW-GATE-S1, docs/decisions.md 2026-11-17)
+          gate=$(mktemp -d)
+          for f in check-claude-verdict.sh select-claude-review.jq fetch-claude-verdict.sh; do
+            if ! git show "origin/$BASE_REF:.github/scripts/$f" > "$gate/$f" 2>/dev/null; then
+              echo "::error::기준 브랜치(origin/$BASE_REF)에 판정 스크립트 $f 가 없어 판정할 수 없습니다. 실패로 처리합니다."
+              exit 1
+            fi
+          done
+          # claude[bot]이 이 커밋에 낸 마지막 판정만 고른다(다른 봇·사람·다른 커밋의 리뷰는 세지 않는다)
+          review=$(bash "$gate/fetch-claude-verdict.sh" "$REPO" "$PR" "$HEAD_SHA")
           state=$(jq -r '.state // "NONE"' <<< "$review")
-          body=$(jq -r '.body // ""' <<< "$review")
           echo "이 커밋($HEAD_SHA)에 대한 Claude 판정: $state"
-          case "$state" in
-            APPROVED)
-              # PASS 본문의 점검표 A~F는 각각 정확히 한 줄이고, 상태가 "확인함" 또는 "해당 없음"이어야 인정한다
-              # ("문제", "확인 못 함", 항목 누락, 중복은 모두 거부. 줄 앞의 목록 기호 -, * 와 공백은 허용)
-              for item in "A 보안:" "B 정확성:" "C TDD:" "D 요구사항:" "E 문서:" "F 결정:"; do
-                lines=$(grep -E "^[[:space:]*-]*${item}" <<< "$body" || true)
-                count=$(grep -c . <<< "$lines" || true)
-                if [ -z "$lines" ] || [ "$count" -ne 1 ]; then
-                  echo "::error::PASS 본문에 점검표 '$item' 줄이 정확히 한 줄 있어야 합니다(지금 ${count:-0}줄)."
-                  exit 1
-                fi
-                if ! grep -qE "^[[:space:]*-]*${item}[[:space:]]*(확인함|해당 없음)" <<< "$lines"; then
-                  echo "::error::'$item' 상태가 '확인함' 또는 '해당 없음'이 아닌데 PASS했습니다. 기준상 BLOCK입니다: $lines"
-                  exit 1
-                fi
-              done
-              echo "PASS" ;;
-            CHANGES_REQUESTED) echo "::error::BLOCK — Claude가 수정을 요청했습니다. PR의 리뷰 댓글을 확인하세요."; exit 1 ;;
-            *) echo "::error::판정 없음 — Claude 리뷰가 실행되지 않았거나 판정을 제출하지 않았습니다."; exit 1 ;;
-          esac
+          jq -r '.body // ""' <<< "$review" | bash "$gate/check-claude-verdict.sh" "$state"
