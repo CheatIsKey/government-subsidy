@@ -102,6 +102,7 @@ b_E6() { make_body "A 보안:" "A 보안: $1 — x"; }
 b_E7() { BODY=""; }
 b_E11() { make_body "A 보안:" "참고: A 보안: 확인함 — x"; }
 b_E12() { make_body; BODY+="참고로 A 보안: 문제 라는 표현은 예시일 뿐이다."$'\n'; }
+b_E12_unknown() { make_body; BODY+="참고: '확인 못 함'은 상태 예시다."$'\n'; }
 b_E13() { checklist; BODY="PASS: 요약"$'\n'"A 보안: 항목은 다음을 본다"$'\n'"$CL"; }
 b_E14() { make_body "A 보안:" "A 보안: 확인함 — x B 정확성: 문제" "B 정확성:" ""; }
 b_B1() {  # 모든 점검표 줄 앞에 같은 접두를 붙인다
@@ -172,6 +173,7 @@ run_test "REVIEW-GATE-E10 인자 없음 → 판정 없음" t_no_arg
 
 run_test "REVIEW-GATE-E11 줄 머리가 문장 중간에만 → 누락" t_fail "A 보안|0줄" b_E11
 run_test "REVIEW-GATE-E12 문장 중간의 'A 보안: 문제'는 세지 않음" t_pass b_E12
+run_test "REVIEW-GATE-E12 설명 문단의 '확인 못 함' 예시는 세지 않음" t_pass b_E12_unknown
 run_test "REVIEW-GATE-E13 설명 문단이 줄 머리로 시작 → 2줄" t_fail "A 보안|2줄" b_E13
 run_test "REVIEW-GATE-E14 한 줄에 두 항목, B 줄 없음 → B 누락" t_fail "B 정확성|0줄" b_E14
 
@@ -338,6 +340,9 @@ t_f2() { need_jq || return
 t_f3() { need_jq || return
   select_reviews "[$(rv 1 "$C" APPROVED $OTHER_SHA)]"
   assert_eq "$OUT" "null" "선택 결과"; }
+t_block_then_other() { need_jq || return  # t_block_then_other <로그인> <커밋>  — Claude BLOCK 뒤 다른 리뷰의 APPROVED
+  select_reviews "[$(rv 1 "$C" CHANGES_REQUESTED $SHA),$(rv 2 "$1" APPROVED "$2")]"
+  assert_eq "$OUT" '{"id":1,"state":"CHANGES_REQUESTED","body":"본문 1"}' "선택 결과"; }
 t_f4_only() { need_jq || return
   select_reviews "[$(rv 1 "$C" COMMENTED $SHA),$(rv 2 "$C" DISMISSED $SHA)]"
   assert_eq "$OUT" "null" "선택 결과"; }
@@ -360,6 +365,8 @@ run_test "REVIEW-GATE-S2 'claude-impostor[bot]'의 APPROVED만 → null" t_s2 'c
 run_test "REVIEW-GATE-F1 APPROVED → CHANGES_REQUESTED, 마지막 것" t_f1
 run_test "REVIEW-GATE-F2 CHANGES_REQUESTED → APPROVED, 마지막 APPROVED와 본문" t_f2
 run_test "REVIEW-GATE-F3 다른 커밋의 APPROVED만 → null" t_f3
+run_test "REVIEW-GATE-S2 Claude BLOCK 뒤 다른 작성자 APPROVED는 무시" t_block_then_other alice "$SHA"
+run_test "REVIEW-GATE-F3 현재 커밋 BLOCK 뒤 다른 커밋 APPROVED는 무시" t_block_then_other "$C" "$OTHER_SHA"
 run_test "REVIEW-GATE-F4 COMMENTED·DISMISSED만 → null" t_f4_only
 run_test "REVIEW-GATE-F4 APPROVED 뒤 COMMENTED·DISMISSED는 무시" t_f4_after
 run_test "REVIEW-GATE-F5 2페이지, 마지막 판정이 2페이지" t_f5_last_page
