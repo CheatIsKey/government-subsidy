@@ -3,9 +3,13 @@ package io.github.cheatiskey.subsidy.ingestion;
 import static io.github.cheatiskey.subsidy.ingestion.Gov24Fixtures.items;
 import static io.github.cheatiskey.subsidy.ingestion.Gov24Fixtures.page;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.awaitility.Awaitility.await;
 
+import java.net.http.HttpTimeoutException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,16 +36,16 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.convention.TestBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
  * SYNC-6 1차: 실행 도중의 상태 (통합). 공공 API 대신 테스트가 호출마다 결과를 정하는 가짜 목록 공급자를 쓴다
- * (재시도 도중에 멈춰 세우고, 공공 API가 아닌 예외를 던지기 위해). 재시도 간격 0s·지터 0.
+ * (재시도 도중에 멈춰 세우고, 공공 API가 아닌 예외를 던지기 위해). 재시도 간격 0s. 저장 단계 오류는 BenefitWriter 스파이로 낸다.
  * 시계는 테스트가 움직일 수 있는 시계로 바꿔 끼운다 (heartbeat 갱신을 보려고).
  */
 @TestPropertySource(properties = {
         "subsidy.gov24.retry.max-attempts=4",
-        "subsidy.gov24.retry.intervals=0s,0s,0s",
-        "subsidy.gov24.retry.jitter-ratio=0"
+        "subsidy.gov24.retry.intervals=0s,0s,0s"
 })
 class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
 
@@ -61,6 +66,9 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
 
     @Autowired
     DelegatingServiceListSource source;
+
+    @MockitoSpyBean
+    BenefitWriter benefitWriter;
 
     private final CountDownLatch release = new CountDownLatch(1);
     private CompletableFuture<SyncRunView> background;
@@ -121,12 +129,21 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
                 new DataAccessResourceFailureException("DB 연결 끊김"));
     }
 
+    /** 실행 기록이 정확히 하나이고, FAILED INTERNAL_ERROR (RUNNING으로 남지 않음). */
+    private void assertSingleRunFailedInternally() {
+        List<SyncRunView> runs = syncRunQueryService.list(20);
+        assertThat(runs).extracting(SyncRunView::status).containsExactly(SyncRunStatus.FAILED);
+        assertThat(runs).extracting(SyncRunView::errorCode).containsExactly("INTERNAL_ERROR");
+    }
+
     @ParameterizedTest(name = "[{index}] {0}")
     @MethodSource("nonApiErrors")
-    @DisplayName("SYNC-6-F12 공공 API가 아닌 예외 → FAILED INTERNAL_ERROR로 기록한 뒤 같은 예외를 다시 던짐, RUNNING 남지 않음")
+    @DisplayName("SYNC-6-F12 목록 공급자의 공공 API가 아닌 예외 → 재시도 없이(호출 1번) FAILED INTERNAL_ERROR로 기록한 뒤 같은 예외를 다시 던짐")
     void f12_unexpectedErrorIsRecordedThenRethrown(RuntimeException error) {
+        AtomicInteger secondPageCalls = new AtomicInteger();
         source.use((pageNo, perPage) -> {
             if (pageNo == 2) {
+                secondPageCalls.incrementAndGet();
                 throw error;
             }
             return page(pageNo, 100, 250, items(1, 100));
@@ -135,9 +152,42 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
         Throwable thrown = catchThrowable(syncService::runFull);
 
         assertThat(thrown).isSameAs(error);
-        List<SyncRunView> runs = syncRunQueryService.list(20);
-        assertThat(runs).extracting(SyncRunView::status).containsExactly(SyncRunStatus.FAILED);
-        assertThat(runs).extracting(SyncRunView::errorCode).containsExactly("INTERNAL_ERROR");
+        assertThat(secondPageCalls).as("재시도 없음").hasValue(1);
+        assertSingleRunFailedInternally();
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F12 저장 단계(BenefitWriter.write)의 DB 오류 → FAILED INTERNAL_ERROR로 기록한 뒤 같은 예외를 다시 던짐, RUNNING 남지 않음")
+    void f12_writerDbErrorIsRecordedThenRethrown() {
+        DataAccessResourceFailureException error = new DataAccessResourceFailureException("DB 연결 끊김");
+        doThrow(error).when(benefitWriter).write(any(), any());
+        source.use((pageNo, perPage) -> page(1, 100, 20, items(1, 20)));
+
+        Throwable thrown = catchThrowable(syncService::runFull);
+
+        assertThat(thrown).isSameAs(error);
+        assertSingleRunFailedInternally();
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F10 1페이지가 응답 타임아웃(TIMEOUT)으로 4번 모두 실패 → 호출 4번, FAILED SOURCE_UNAVAILABLE, 저장 없음, 예외 없음")
+    void f10_firstPageTimeoutFailsRun() {
+        AtomicInteger firstPageCalls = new AtomicInteger();
+        source.use((pageNo, perPage) -> {
+            firstPageCalls.incrementAndGet();
+            throw Gov24Errors.ioError(new HttpTimeoutException("request timed out"),
+                    "/api/gov24/v3/serviceList", pageNo, "test-service-key");
+        });
+
+        AtomicReference<SyncRunView> run = new AtomicReference<>();
+        assertThatCode(() -> run.set(syncService.runFull()))
+                .as("공공 API 실패에서 runFull은 예외를 던지지 않는다").doesNotThrowAnyException();
+
+        assertThat(firstPageCalls).hasValue(4);
+        assertThat(run.get().status()).isEqualTo(SyncRunStatus.FAILED);
+        assertThat(run.get().errorCode()).isEqualTo("SOURCE_UNAVAILABLE");
+        assertThat(benefitCount()).isZero();
+        assertThat(syncRunQueryService.list(20)).extracting(SyncRunView::status).containsExactly(SyncRunStatus.FAILED);
     }
 
     private static boolean awaitLatch(CountDownLatch latch) {

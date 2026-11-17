@@ -6,6 +6,7 @@ import static io.github.cheatiskey.subsidy.ingestion.Gov24Fixtures.pages;
 import static io.github.cheatiskey.subsidy.ingestion.ServiceKeyForms.KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.Assertions.within;
 
 import java.io.IOException;
@@ -21,13 +22,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * SYNC-6 1차: 목록 한 페이지 호출의 재시도 (단위). 기다림은 가짜 sleeper, 무작위 지연은 고정 난수.
- * 기본 설정: 최대 4번, 간격 1s·4s·16s, 무작위 지연은 간격의 0~20%. 목록은 totalCount=250, perPage=100 (3페이지).
+ * 기본 설정: 최대 4번, 간격 1s·4s·16s, 무작위 지연은 상수 20%(간격 × (1 + 0.2 × 난수), 난수 [0,1)). 목록은 totalCount=250, perPage=100 (3페이지).
  */
 class ServiceListCollectorRetryTest {
 
     static final String LIST_PATH = "/api/gov24/v3/serviceList";
     static final Gov24RetryProperties DEFAULT_RETRY = new Gov24RetryProperties(
-            4, List.of(Duration.ofSeconds(1), Duration.ofSeconds(4), Duration.ofSeconds(16)), 0.2);
+            4, List.of(Duration.ofSeconds(1), Duration.ofSeconds(4), Duration.ofSeconds(16)));
 
     private final ScriptedServiceListSource source = new ScriptedServiceListSource();
     private final List<Duration> slept = new ArrayList<>();
@@ -95,7 +96,7 @@ class ServiceListCollectorRetryTest {
     }
 
     @Test
-    @DisplayName("SYNC-6-B3 난수 0.5면 각 간격에 10%(지터 비율 20%의 절반)를 더해 1.1s, 4.4s, 17.6s를 기다린다")
+    @DisplayName("SYNC-6-B3 난수 0.5면 간격 × (1 + 0.2 × 0.5) = 1.1s, 4.4s, 17.6s를 기다린다")
     void b3_jitterIsProportionalToInterval() {
         secondPage(http(503, 2));
 
@@ -108,7 +109,7 @@ class ServiceListCollectorRetryTest {
     }
 
     @Test
-    @DisplayName("SYNC-6-B3 난수가 1에 가까워도(0.999) 무작위 지연은 각 간격의 20% 미만")
+    @DisplayName("SYNC-6-B3 난수가 1에 가까워도(0.999) 간격 × (1 + 0.2 × 0.999): 각 간격의 20% 미만만 더한다")
     void b3_jitterStaysBelowTwentyPercent() {
         secondPage(http(503, 2));
 
@@ -131,16 +132,68 @@ class ServiceListCollectorRetryTest {
     }
 
     @Test
-    @DisplayName("SYNC-6-B4 설정을 바꾸면(횟수 2, 간격 0s, 지터 0) 그 값이 쓰인다: 2번 부르고 실패 기록 attempt=2")
+    @DisplayName("SYNC-6-B4 설정을 바꾸면(횟수 2, 간격 0s) 그 값이 쓰인다: 2번 부르고, 0초 간격도 sleeper를 1번 부르고, 실패 기록 attempt=2")
     void b4_configuredAttemptsAreUsed() {
         secondPage(http(503, 2));
 
-        ListCollectionResult result = collect(new Gov24RetryProperties(2, List.of(Duration.ZERO), 0.0), 0.5);
+        ListCollectionResult result = collect(new Gov24RetryProperties(2, List.of(Duration.ZERO)), 0.5);
 
         assertThat(source.calls(2)).isEqualTo(2);
         assertThat(result.failedPages()).containsExactly(2);
         assertThat(notifiedPage(2).failure().attemptCount()).isEqualTo(2);
-        assertThat(slept).allSatisfy(d -> assertThat(d).isEqualTo(Duration.ZERO));
+        assertThat(slept).containsExactly(Duration.ZERO);
+    }
+
+    @Test
+    @DisplayName("SYNC-6-B4 간격이 (횟수−1)개보다 많으면(횟수 2, 간격 0s·5s·9s) 남는 간격은 무시: 2번 부르고 기다림은 0s 한 번")
+    void b4_extraIntervalsAreIgnored() {
+        secondPage(http(503, 2));
+
+        collect(new Gov24RetryProperties(2, List.of(Duration.ZERO, Duration.ofSeconds(5), Duration.ofSeconds(9))), 0.0);
+
+        assertThat(source.calls(2)).isEqualTo(2);
+        assertThat(slept).containsExactly(Duration.ZERO);
+    }
+
+    @Test
+    @DisplayName("SYNC-6-B4 횟수 1(간격 1s)이면 재시도 없음: 1번 부르고 기다리지 않고 실패 기록 attempt=1")
+    void b4_singleAttemptMeansNoRetry() {
+        secondPage(http(503, 2));
+
+        ListCollectionResult result = collect(new Gov24RetryProperties(1, List.of(Duration.ofSeconds(1))), 0.0);
+
+        assertThat(source.calls(2)).isEqualTo(1);
+        assertThat(slept).isEmpty();
+        assertThat(result.failedPages()).containsExactly(2);
+        assertThat(notifiedPage(2).failure()).isEqualTo(new PageFailure(503, "HTTP_ERROR", 1));
+    }
+
+    @ParameterizedTest(name = "[{index}] HTTP {0}")
+    @ValueSource(ints = {408, 429})
+    @DisplayName("SYNC-6-F2 408·429 4번 연속 → 재시도 대상: 호출 4번, 그 페이지 실패 기록(408|429, HTTP_ERROR, 4번), 3페이지 계속")
+    void f2_requestTimeoutAndTooManyRequestsAreRetried(int status) {
+        secondPage(http(status, 2));
+
+        ListCollectionResult result = collect();
+
+        assertThat(source.calls(2)).isEqualTo(4);
+        assertThat(source.calls(3)).isEqualTo(1);
+        assertThat(result.failedPages()).containsExactly(2);
+        assertThat(notifiedPage(2).failure()).isEqualTo(new PageFailure(status, "HTTP_ERROR", 4));
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F12 (단위) 공공 API가 아닌 RuntimeException → 재시도 없이(호출 1번, 기다림 없음) 같은 예외를 그대로 전파")
+    void f12_nonApiExceptionPropagatesWithoutRetry() {
+        IllegalStateException error = new IllegalStateException("예상 못 한 오류");
+        secondPage(error);
+        ServiceListCollector collector = new ServiceListCollector(source, DEFAULT_RETRY, slept::add, () -> 0.0);
+
+        Throwable thrown = catchThrowable(() -> collector.collect(100, notified::add));
+
+        assertThat(thrown).isSameAs(error);
+        assertThat(source.calls(2)).isEqualTo(1);
+        assertThat(slept).isEmpty();
     }
 
     @Test
