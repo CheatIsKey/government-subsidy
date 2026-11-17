@@ -642,7 +642,7 @@
 | REVIEW-GATE-E9 | 예외 | 상태 인자 NONE | 1, `판정 없음` 메시지 | 단위 |
 | REVIEW-GATE-E10 | 예외 | 상태 인자가 COMMENTED, 빈 문자열, 소문자 `approved`, 인자 없음 | 1, `판정 없음` 메시지 | 단위 |
 | REVIEW-GATE-E11 | 예외 | 줄 머리가 문장 중간에만 있음 (`참고: A 보안: 확인함 — x`) | 1 (누락) | 단위 |
-| REVIEW-GATE-E12 | 예외 | 정상 점검표 + 다른 문장 중간에 `A 보안: 문제` | 0 (줄 머리만 셈) | 단위 |
+| REVIEW-GATE-E12 | 예외 | 정상 점검표 + 다른 문장 중간에 `A 보안: 문제` / 설명 문단에만 `확인 못 함`이 상태 예시로 나옴 | 0 (줄 머리만 셈) | 단위 |
 | REVIEW-GATE-E13 | 예외 | 설명 문단이 줄 머리로 시작 (`A 보안: 항목은 다음을 본다`) | 1 (중복, 안전한 쪽 오탐) | 단위 |
 | REVIEW-GATE-E14 | 예외 | 한 줄에 두 항목 (`A 보안: 확인함 — x B 정확성: 문제`), B 줄 없음 | 1 (B 누락) | 단위 |
 | REVIEW-GATE-B1 | 경계 | 줄 앞에 공백, 탭, `- `, `* `, 들여쓴 `  - ` | 0 | 단위 |
@@ -659,11 +659,11 @@
 | REVIEW-GATE-B12 | 경계 | 본문에 `-`로 시작하는 줄, 백슬래시, `$(...)` | 실행·옵션 해석 없음, 판정 같음 | 단위 |
 | REVIEW-GATE-B13 | 경계 | 근거 없음 (`A 보안: 확인함`), 짧은 대시 (`- x`, en dash `– x`, `-- x`), 대시 붙여 씀 (`확인함—x`, `확인함 —x`), 대시 뒤 근거 비움 (`확인함 — `), 근거가 공백뿐 (`확인함 —    `), CRLF + 근거 비움 | 1 | 단위 |
 | REVIEW-GATE-S1 | 권한 | PR이 판정 스크립트를 `exit 0`으로 바꿈 (워크플로 파일은 그대로) | dev 쪽 원본으로 판정해 우회 안 됨 | 병합 뒤 수동 확인 |
-| REVIEW-GATE-S2 | 권한 | 다른 봇이나 사람의 APPROVED만 있음 (`coderabbitai[bot]`, `alice`, 사람 `claude`, `claude-impostor[bot]`) | NONE → 1 (로그인이 정확히 `claude[bot]`일 때만 셈) | 리뷰 선택 단위 |
+| REVIEW-GATE-S2 | 권한 | 다른 봇이나 사람의 APPROVED만 있음 (`coderabbitai[bot]`, `alice`, 사람 `claude`, `claude-impostor[bot]`) | NONE → 1 (로그인이 정확히 `claude[bot]`일 때만 셈). Claude의 CHANGES_REQUESTED 뒤에 다른 작성자의 APPROVED가 와도 CHANGES_REQUESTED를 고름 | 리뷰 선택 단위 |
 | REVIEW-GATE-S3 | 권한 | 본문이 `::error::`, `::add-mask::` 같은 워크플로 명령을 흉내 냄 (줄 머리, 근거 안의 `\r` 뒤 포함) | 출력을 `\r`·`\n`으로 나눈 어느 줄 머리에도 본문이 워크플로 명령으로 나오지 않음 | 단위 |
 | REVIEW-GATE-F1 | 실패 | claude[bot] 판정 APPROVED → CHANGES_REQUESTED | 마지막 것 → 1 | 리뷰 선택 단위 |
 | REVIEW-GATE-F2 | 실패 | CHANGES_REQUESTED → APPROVED | 마지막 APPROVED의 본문 검사 | 리뷰 선택 단위 |
-| REVIEW-GATE-F3 | 실패 | 다른 커밋에 대한 APPROVED만 있음 | NONE → 1 | 리뷰 선택 단위 |
+| REVIEW-GATE-F3 | 실패 | 다른 커밋에 대한 APPROVED만 있음 / 현재 커밋 CHANGES_REQUESTED 뒤 다른 커밋 APPROVED | NONE → 1 / 현재 커밋의 CHANGES_REQUESTED를 고름 | 리뷰 선택 단위 |
 | REVIEW-GATE-F4 | 실패 | COMMENTED나 DISMISSED만 있음 / APPROVED 뒤에 COMMENTED·DISMISSED | NONE → 1 / 그 APPROVED를 고름 (DISMISSED는 무시) | 리뷰 선택 단위 |
 | REVIEW-GATE-F5 | 실패 | 결과가 2페이지, 마지막 판정이 2페이지 / 2페이지에는 판정 없음 | 페이지를 합친 뒤 마지막 것 / 1페이지 것 | 리뷰 선택 단위 |
 | REVIEW-GATE-F6 | 실패 | gh 조회가 중간 페이지에서 실패 / 대조: 모든 페이지 성공 | 단계 실패 (앞 페이지 승인으로 통과 안 함) / 마지막 판정 출력, gh 인자가 정확히 `api repos/<R>/pulls/<P>/reviews --paginate` | 가짜 gh |
@@ -696,3 +696,4 @@
 | 2026-11-14 | SEARCH-4-E4 | 다른 시·도 서비스 처리를 "감점"으로 확정 | Q-47 추천안 채택 (지역은 추정값) | 사용자 |
 | 2026-11-17 | REVIEW-GATE-N1~R2 (추가) | PR 리뷰 판정 확인 케이스 46개. dev 쪽 스크립트 실행(S1), 상태 엄격 형식 `<상태> — <근거>`(B4·B13), 첫 줄 `PASS:` 검사(B10), 서식 거부(B2) | PR #11 CodeRabbit 지적(테스트 없는 판정 게이트, 접두부 매칭), 케이스 분석에서 스크립트 변조 우회 발견 | 사용자 |
 | 2026-11-17 | REVIEW-GATE 머리 설명, E3~E6, E10, B1, B2, B10, B13, S2, S3, F4~F7 (보강) | 테스트 리뷰에서 대충 만든 구현이 살아남는 빈틈 6개와, 테스트가 케이스 문구보다 앞선 메시지·하위 테스트·검사 순서를 케이스에 반영. 목록 기호는 한 개+공백만, 본문 앞 빈 줄은 건너뜀 | 테스트 리뷰(2-1단계) | 사용자 |
+| 2026-11-17 | REVIEW-GATE-E12, S2, F3 (하위 입력 추가) | 문단 속 `확인 못 함` 예시, Claude BLOCK 뒤 다른 작성자·다른 커밋 승인 | PR #11 CodeRabbit 제안(회귀 방지) | 사용자 |
