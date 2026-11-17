@@ -115,22 +115,22 @@
 | ID | 관점 | 상황 | 기대 결과 | 테스트 |
 |---|---|---|---|---|
 | SYNC-6-N1 | 정상 | 1페이지 503 1번 → 재시도에서 200, 나머지 정상 | SUCCEEDED, sync_failure 0건, 그 페이지 호출 2번 | 통합 |
-| SYNC-6-F1 | 실패 | 3페이지 401 (1차 기준으로 구체화) | 그 페이지 호출 1번(재시도 없음). run=FAILED `AUTH_FAILED`, `runFull()`은 예외를 던지지 않음, ERROR 로그 1건(키 없음), 1·2페이지도 저장하지 않고 기존 benefit 그대로 | 통합 |
+| SYNC-6-F1 | 실패 | 3페이지 401 (1차 기준으로 구체화) | 그 페이지 호출 1번(재시도 없음). run=FAILED `AUTH_FAILED`, `runFull()`은 예외를 던지지 않음, ERROR 로그 1건(앱 전체 기준, 키 없음), 1·2페이지도 저장하지 않고 기존 benefit 그대로. 실패 행 1줄 `(LIST, 3, 401, HTTP_ERROR, attempt=1)` | 통합 |
 | SYNC-6-F3 | 실패 | 2페이지가 5xx를 4번 연속 | 호출 4번. LIST 실패(page=2, http_status=500, error_code=HTTP_ERROR, attempt_count=4) 기록, 3페이지 계속, PARTIAL, 삭제 판정 안 함 | 통합 |
 | SYNC-6-F4 | 실패 | 중간 페이지가 읽기 타임아웃·연결 실패·IO로 4번 연속 | F3과 같음. http_status는 예외에 있을 때만, error_code는 종류(TIMEOUT/CONNECTION/IO) | 통합(TIMEOUT 1개), 단위(CONNECTION·IO) |
-| SYNC-6-F10 | 실패 | 1페이지가 재시도까지 모두 실패 (5xx 또는 타임아웃) | 멈춤. run=FAILED `SOURCE_UNAVAILABLE`, 저장 없음, RUNNING 남지 않음 | 통합 |
-| SYNC-6-F11 | 실패 | 401·403을 뺀 4xx (400·404) | 재시도 없음(호출 1번). 그 페이지만 실패 기록 후 계속, PARTIAL | 단위 |
+| SYNC-6-F10 | 실패 | 1페이지가 재시도까지 모두 실패 (5xx / 타임아웃 각각) | 멈춤. run=FAILED `SOURCE_UNAVAILABLE`, 저장 없음, RUNNING 남지 않음 | 통합 |
+| SYNC-6-F11 | 실패 | 401·403을 뺀 4xx (400·404) | 재시도 없음(호출 1번). 그 페이지만 실패 기록 후 계속, PARTIAL. 통합 1개: 2페이지 404 → 호출 1번, 실패 행 `(LIST, 2, 404, HTTP_ERROR, 1)`, PARTIAL | 단위, 통합 |
 | SYNC-6-F11-403 | 실패 | 403 | F1과 같음(재시도 없음, FAILED `AUTH_FAILED`) | 단위 |
-| SYNC-6-F12 | 실패 | 공공 API가 아닌 예외 (DB 오류, 예상 못 한 RuntimeException) | run=FAILED `INTERNAL_ERROR`로 기록한 뒤 예외를 다시 던짐. RUNNING 남지 않음 | 통합 |
-| SYNC-6-F2 | 실패 | 429 (1차 범위) | 재시도 대상. 4번 모두 실패하면 F3과 같게(PARTIAL, 실패 기록). `Retry-After`·cursor 저장은 보류 | 통합 |
+| SYNC-6-F12 | 실패 | 공공 API가 아닌 예외 (목록 공급자의 RuntimeException, 저장 단계 `BenefitWriter.write`의 DB 오류) | 재시도 없이(호출 1번) run=FAILED `INTERNAL_ERROR`로 기록한 뒤 예외를 다시 던짐. RUNNING 남지 않음 | 통합, 단위(재시도 없이 전파) |
+| SYNC-6-F2 | 실패 | 429·408 (1차 범위) | 재시도 대상. 4번 모두 실패하면 F3과 같게(PARTIAL, 실패 기록). `Retry-After`·cursor 저장은 보류 | 통합 |
 | SYNC-6-B1 | 경계값 | 503 3번 뒤 4번째에 200 | 성공 처리, 실패 기록 없음, 호출 4번 | 단위 |
 | SYNC-6-B2 | 경계값 | 4번 모두 실패 | 정확히 4번 부르고 5번째는 없음 | 단위 |
-| SYNC-6-B3 | 경계값 | 기다리는 간격 | 기다림이 1s, 4s, 16s 순서(무작위 지연은 각 간격의 0~20%). 마지막 실패 뒤에는 기다리지 않음 | 단위 (가짜 sleeper, 고정 난수) |
-| SYNC-6-B4 | 경계값 | `subsidy.gov24.retry.*` 설정을 바꿈 (짝 테스트) | 설정 값이 실제로 쓰임(예: 간격 0s, 횟수 2). 설정이 없으면 4번·1·4·16초. 음수·빈 목록·횟수 0이면 기동 실패 | 단위 |
+| SYNC-6-B3 | 경계값 | 기다리는 간격 | 기다림이 1s, 4s, 16s 순서(무작위 지연은 각 간격의 0~20%, 비율은 설정이 아닌 상수). 공식 `간격 × (1 + 0.2 × 난수)`, 난수는 [0,1). 0초 간격도 sleeper를 부름. 마지막 실패 뒤에는 기다리지 않음 | 단위 (가짜 sleeper, 고정 난수) |
+| SYNC-6-B4 | 경계값 | `subsidy.gov24.retry.*`(max-attempts, intervals) 설정을 바꿈 (짝 테스트) | 설정 값이 실제로 쓰임(예: 간격 0s, 횟수 2). 앱 빈에 연결되는지 통합 1개(max-attempts=2 → 호출 2번, attempt_count=2). 설정이 없으면 4번·1·4·16초. 간격 개수는 (횟수−1)개 이상이면 됨(남는 간격 무시). 횟수 0·음수, 음수 간격, 빈 목록, 간격이 (횟수−1)개 미만이면 기동 실패(원인에 속성 이름) | 단위, 통합 |
 | SYNC-6-B5 | 경계값 | 타임아웃 설정을 비움 | 연결 5초·응답 30초 기본값 적용(무한 대기 없음). 설정이 있으면 그 값 | 단위 |
 | SYNC-6-E1 | 예외 | 재시도 중인 실행을 조회 | RUNNING, 지금까지의 건수. 호출할 때마다 heartbeat 갱신 | 통합 |
 | SYNC-6-E2 | 예외 | 200인데 data가 없거나 JSON이 아님 | 재시도하지 않음. 지금처럼 실패 기록 후 계속 (SYNC-1-E3·E4 그대로) | 단위 (회귀) |
-| SYNC-6-A1 | 권한 | 실패 기록 뒤 운영 API 조회와 로그 | sync_failure.message·error_code, sync_run.error_summary, 재시도 WARN·ERROR 로그 어디에도 키 없음 (OPS-5 연장) | 통합 |
+| SYNC-6-A1 | 권한 | 실패 기록 뒤 운영 API 조회와 로그 | 실패 행과 WARN 이상 로그가 실제로 1건 이상 있고, 그 안의 sync_failure.message·error_code, sync_run.error_summary, 재시도 WARN·ERROR 로그 어디에도 키 없음 (OPS-5 연장). message는 `Gov24ApiException` 메시지(키 가린 안전한 칸만) | 통합 |
 | SYNC-6-M1 | 마이그레이션 | 상태 값과 칼럼 | 새 Flyway 없음. V1의 heartbeat_at, http_status, error_code, attempt_count만 사용 | 검증 불가 (SYNC-1-M1 스키마 확인으로 대신) |
 | SYNC-6-M2 | 마이그레이션 | 로컬 DB에 이미 RUNNING으로 남은 행 | 1차에서는 손대지 않음. 2차 F8 정리가 처리 | 검증 불가 |
 
@@ -728,3 +728,4 @@
 | 2026-11-17 | REVIEW-GATE 머리 설명, E3~E6, E10, B1, B2, B10, B13, S2, S3, F4~F7 (보강) | 테스트 리뷰에서 대충 만든 구현이 살아남는 빈틈 6개와, 테스트가 케이스 문구보다 앞선 메시지·하위 테스트·검사 순서를 케이스에 반영. 목록 기호는 한 개+공백만, 본문 앞 빈 줄은 건너뜀 | 테스트 리뷰(2-1단계) | 사용자 |
 | 2026-11-17 | REVIEW-GATE-E12, S2, F3 (하위 입력 추가) | 문단 속 `확인 못 함` 예시, Claude BLOCK 뒤 다른 작성자·다른 커밋 승인 | PR #11 CodeRabbit 제안(회귀 방지) | 사용자 |
 | 2026-11-17 | SYNC-6 1차: N1, F1·F2·F3 (구체화), F4, F10, F11, F11-403, F12, B1~B5, E1, E2, A1, M1, M2 (추가) / F5·F6·F7·F8·F9 (2차·보류·범위 밖) | 이슈 #6을 1차로 나눔. 재시도 대상, 상태 코드, 타임아웃 기본값을 케이스 분석 추천안대로 확정 | 1단계 케이스 분석 추천 | 사용자 |
+| 2026-11-17 | SYNC-6-F1, F2, F10, F11, F12, B3, B4, A1 (보강) | 테스트 리뷰 빈틈 반영: 401 실패 행 1줄, 408 추가, 1페이지 타임아웃, 404 통합, 저장 단계 DB 오류·재시도 없음, 지터 상수, 간격 개수 규칙·통합 배선, 빈 목록 검사 방지, 실패 메시지는 우리 예외 메시지 | 테스트 리뷰(2-1단계) | 사용자 |
