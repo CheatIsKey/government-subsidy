@@ -101,14 +101,15 @@ public class ServiceListCollector {
         return Duration.ofNanos(Math.round(interval.toNanos() * (1 + JITTER_RATIO * random.getAsDouble())));
     }
 
-    /** 재시도 대상: HTTP 5xx·429·408, TIMEOUT, CONNECTION, IO. 401·403은 종류와 상관없이 제외 (SYNC-6-F1b). */
+    /** 재시도 대상: HTTP 5xx·429·408, TIMEOUT, CONNECTION, IO(200 등 오류가 아닌 상태 뒤 IO 포함). 그 밖의 4xx는 종류가 IO여도 제외, 401·403은 인증 실패 (SYNC-6-F1b·F11b). */
     private static boolean isRetryable(Gov24ApiException e) {
         if (isAuthFailure(e)) {
             return false;
         }
-        // 상태 코드가 있으면 종류(IO 등)보다 상태 코드를 먼저 본다 — 404 뒤 본문이 끊겨도 재시도하지 않음 (SYNC-6-F11b).
+        // 오류 상태 코드(400 이상)가 있으면 종류(IO 등)보다 먼저 본다 — 404 뒤 본문이 끊겨도 재시도하지 않음 (SYNC-6-F11b).
+        // 200처럼 오류가 아닌 상태 뒤 IO(본문 해석 실패, OPS-5-E16)는 IO 규칙대로 재시도한다 (SYNC-6-F4).
         Integer status = e.httpStatus();
-        if (status != null) {
+        if (status != null && status >= 400) {
             return status >= 500 || status == 429 || status == 408;
         }
         return e.kind() != Gov24ApiException.Kind.HTTP_ERROR;
