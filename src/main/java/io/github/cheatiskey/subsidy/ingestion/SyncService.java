@@ -66,7 +66,8 @@ public class SyncService {
     /**
      * 전체(FULL) 동기화를 한 번 실행하고, 끝난 실행 기록을 돌려준다.
      * 공공 API 실패는 실행 기록(FAILED·PARTIAL)에 남기고 던지지 않는다. 공공 API가 아닌 예외는
-     * FAILED `INTERNAL_ERROR`로 기록한 뒤 같은 예외를 다시 던진다. 어느 쪽이든 RUNNING으로 남지 않는다 (SYNC-6).
+     * 기록이 가능하면 FAILED `INTERNAL_ERROR`로 기록한 뒤 같은 예외를 다시 던진다 (SYNC-6).
+     * 기록 자체가 실패하면 원래 예외를 던지고, 기록 실패는 suppressed로 붙인다 (SYNC-6-F12b).
      */
     public SyncRunView runFull() {
         long runId = recorder.start(SyncType.FULL, clock.instant());
@@ -78,9 +79,13 @@ public class SyncService {
             }
             transaction.executeWithoutResult(status -> recorder.finish(runId, apply(runId, collected), clock.instant()));
         } catch (RuntimeException e) {
-            recorder.finish(runId, SyncOutcome.failed("INTERNAL_ERROR", e.getClass().getName(), null, 0), clock.instant());
             // 예외 메시지에 키가 있을 수 있어 클래스 이름만 남기고 예외 객체는 붙이지 않는다 (SYNC-6-F12).
             log.error("동기화 run={} 공공 API가 아닌 예외로 중단: {}", runId, e.getClass().getName());
+            try {
+                recorder.finish(runId, SyncOutcome.failed("INTERNAL_ERROR", e.getClass().getName(), null, 0), clock.instant());
+            } catch (RuntimeException recordFailure) {
+                e.addSuppressed(recordFailure);
+            }
             throw e;
         }
         return queryService.find(runId).orElseThrow();

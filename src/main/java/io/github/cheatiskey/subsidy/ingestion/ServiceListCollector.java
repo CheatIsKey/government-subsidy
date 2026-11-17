@@ -106,11 +106,12 @@ public class ServiceListCollector {
         if (isAuthFailure(e)) {
             return false;
         }
-        if (e.kind() != Gov24ApiException.Kind.HTTP_ERROR) {
-            return true;
+        // 상태 코드가 있으면 종류(IO 등)보다 상태 코드를 먼저 본다 — 404 뒤 본문이 끊겨도 재시도하지 않음 (SYNC-6-F11b).
+        Integer status = e.httpStatus();
+        if (status != null) {
+            return status >= 500 || status == 429 || status == 408;
         }
-        int status = e.httpStatus();
-        return status >= 500 || status == 429 || status == 408;
+        return e.kind() != Gov24ApiException.Kind.HTTP_ERROR;
     }
 
     /** 상태 코드를 먼저 본다: 401·403이면 본문 읽기 실패(IO)여도 인증 실패 (SYNC-6-F1b). */
