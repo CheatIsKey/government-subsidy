@@ -13,16 +13,24 @@ public record Gov24Properties(
         String baseUrl,
         String serviceKey,
         @DefaultValue("1000") int perPage,
-        // 껍데기(이슈 #4 2단계): 연결·응답 타임아웃 설정 칸. 기본값과 적용은 구현 단계(#6)에서 정한다.
+        // 연결·응답 타임아웃. 비어 있으면 연결 5초, 응답 30초 (SYNC-6-B5).
         Duration connectTimeout,
         Duration readTimeout) {
 
     static final int MAX_PER_PAGE = 2000;
+    static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
 
     public Gov24Properties {
         if (perPage > MAX_PER_PAGE) {
             throw new IllegalArgumentException(
                     "subsidy.gov24.per-page(perPage)는 " + MAX_PER_PAGE + " 이하여야 합니다: " + perPage);
+        }
+        if (connectTimeout == null) {
+            connectTimeout = DEFAULT_CONNECT_TIMEOUT;
+        }
+        if (readTimeout == null) {
+            readTimeout = DEFAULT_READ_TIMEOUT;
         }
     }
 
