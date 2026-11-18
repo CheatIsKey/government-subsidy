@@ -136,7 +136,7 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 | #18 | W21 | 워크플로 주석 한 줄만 수정 | 실패 (Claude 건너뜀 → 판정 없음) | 막힘. 정상 수정이라도 관리자 우회 필요 (W08) |
 | #19 | W06 | 같은 이름 `review` 가짜 워크플로 추가 | 가짜 성공 + 진짜 실패 | 막힘 (Claude CHANGES_REQUESTED) |
 
-설정 확인: Actions의 PR 승인 권한 `can_approve_pull_request_reviews: false` (W10). 규칙을 바꾸기 직전 열린 PR 0개 (W27).
+설정 확인: Actions의 PR 승인 권한 `can_approve_pull_request_reviews: false` (W10). 저장소 주인 권한으로 다시 본 원문(2026-11-18, `gh api repos/CheatIsKey/government-subsidy/actions/permissions/workflow`): `{"default_workflow_permissions":"read","can_approve_pull_request_reviews":false}`. 리뷰 봇 토큰은 이 API가 403이라 직접 확인하지 못한다(토큰 권한은 늘리지 않음). 규칙을 바꾸기 직전 열린 PR 0개 (W27).
 배울 점: 필수 검사는 "PR 쪽 정의로 도는 작업의 결과"라서 PR이 바꿀 수 있다. PR 쪽 설정에 따르지 않는 계정(현재 `claude[bot]`)의 승인만 병합 조건에 묶어야 한다. CodeRabbit은 PR 쪽 `.coderabbit.yaml`을 읽으므로 이 조건에 맞지 않는다(W29, #21). 그래서 PR이 바꿀 수 없는 기준 브랜치의 CODEOWNERS로 그 파일을 잠갔다.
 
 ### 남은 것
