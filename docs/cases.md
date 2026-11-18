@@ -725,7 +725,7 @@
 | ID | 관점 | 상황 | 기대 결과 | 테스트 |
 |---|---|---|---|---|
 | REVIEW-GATE-W01 | 정상 | 워크플로를 고치지 않은 PR, Claude PASS, 형식 맞음 | `review` 성공, HEAD에 `claude[bot]` APPROVED, 병합 가능 | 시험 PR (이 PR) |
-| REVIEW-GATE-W02 | 정상 | 문서만 바뀐 PR | W01과 같음 | 시험 PR (이 PR, 문서 커밋) |
+| REVIEW-GATE-W02 | 정상 | 문서만 바뀐 PR | W01과 같음 | 다음 문서만 바꾼 PR (W30과 같은 방식. 이 PR은 설정 파일도 바꾸고, 옛 커밋 승인은 무효라 증명 못 함) |
 | REVIEW-GATE-W03 | 정상 | Claude BLOCK (CHANGES_REQUESTED) | 병합 막힘 | 기존 기록 (#15 `8c95c6c`) |
 | REVIEW-GATE-W04 | 권한 | PR이 판정 확인 단계를 지움 | Claude 건너뜀, 승인 없음 → 병합 막힘 (`review`가 초록이어도) | 시험 PR |
 | REVIEW-GATE-W05 | 권한 | 판정 확인 단계를 성공 명령으로 바꾸거나, 작업 `if:`를 `false`로 바꿔 skipped로 만듦 | 승인 없음 → 병합 막힘 | 시험 PR (`if: false`) |
@@ -761,6 +761,7 @@
 |---|---|---|---|---|
 | REVIEW-GATE-W29 | 권한 | PR이 `.coderabbit.yaml`에서 승인을 켜고 `@coderabbitai approve`로 CodeRabbit APPROVED를 받음 | `.github/CODEOWNERS`가 `.coderabbit.yaml`·`.github/`를 주인 소유로 잠그고 dev 규칙이 코드 주인 승인을 요구함 → CodeRabbit 승인은 주인 승인이 아니라 막힘. CODEOWNERS는 기준 브랜치에서 읽으므로 PR이 풀 수 없음 | 시험 PR (PR #20 병합 뒤) |
 | REVIEW-GATE-W30 | 경계 | 잠근 파일을 건드리지 않는 PR (예: `docs/`만 수정) | 코드 주인 승인 필요 없음. Claude 승인 1개로 병합 (지금과 같음) | 다음 일반 PR |
+
 자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
 
 ## 변경 기록 (사람이 빼거나 고친 케이스)
