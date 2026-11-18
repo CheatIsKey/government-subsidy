@@ -33,6 +33,24 @@ class RetrySleeperTest {
     }
 
     @Test
+    @DisplayName("SYNC-6-F13 간격 0초여도 중단 표시가 켜져 있으면 → IllegalStateException, 중단 표시 유지 (JDK sleep(0)은 중단을 확인하지 않음)")
+    void f13_interruptedZeroSleepStillFails() {
+        Thread.currentThread().interrupt();
+
+        Throwable thrown = catchThrowable(() -> sleeper.sleep(Duration.ZERO));
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        assertThat(Thread.interrupted()).as("중단 표시").isTrue();
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F13 (짝) 중단 표시가 없으면 0초 대기는 예외 없이 바로 지나감")
+    void f13_zeroSleepPassesWithoutInterrupt() {
+        assertThatCode(() -> sleeper.sleep(Duration.ZERO)).doesNotThrowAnyException();
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    }
+
+    @Test
     @DisplayName("SYNC-6-F13 (짝) 중단 표시가 없으면 10ms를 실제로 기다리고 예외 없음")
     void f13_sleepWaitsWithoutInterrupt() {
         long start = System.nanoTime();

@@ -253,6 +253,63 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("SYNC-6-F13 2페이지 503 직후 중단 신호 → 실제 sleeper(간격 0s)가 멈춤: 재시도 없음(호출 1번), IllegalStateException 다시 던짐, 중단 표시 유지, 중단 표시가 켜진 채로도 FAILED INTERNAL_ERROR 기록")
+    void f13_interruptDuringRetryWaitIsRecordedAsInternalError() {
+        AtomicInteger secondPageCalls = new AtomicInteger();
+        source.use((pageNo, perPage) -> {
+            if (pageNo == 2) {
+                secondPageCalls.incrementAndGet();
+                Thread.currentThread().interrupt(); // 재시도 대기 직전에 종료 신호가 온 상황
+                throw Gov24Errors.httpError(503, "/api/gov24/v3/serviceList", 2, "", "test-service-key");
+            }
+            return page(pageNo, 100, 250, items(1, 100));
+        });
+
+        Throwable thrown;
+        try {
+            thrown = catchThrowable(syncService::runFull);
+        } finally {
+            interruptedAfterRun = Thread.interrupted(); // 읽으면서 지운다: 다음 테스트·DB 정리에 중단 표시가 남지 않게
+        }
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        assertThat(interruptedAfterRun).as("중단 표시 유지").isTrue();
+        assertThat(secondPageCalls).as("중단 뒤 재시도 없음").hasValue(1);
+        assertSingleRunFailedInternally();
+    }
+
+    private boolean interruptedAfterRun;
+
+    @Test
+    @DisplayName("SYNC-6-E1b heartbeat 갱신이 매번 DB 오류 → 공공 API 결과대로 진행: 2페이지 503 뒤 재시도 성공, SUCCEEDED, 예외 없음, heartbeat WARN 로그는 호출마다 1건(run=n·예외 클래스 이름만)")
+    void e1b_heartbeatFailureDoesNotHideApiResult() {
+        doThrow(new DataAccessResourceFailureException("heartbeat 기록 실패 test-service-key"))
+                .when(recorder).heartbeat(anyLong(), any());
+        AtomicInteger secondPageCalls = new AtomicInteger();
+        source.use((pageNo, perPage) -> {
+            if (pageNo == 2 && secondPageCalls.incrementAndGet() == 1) {
+                throw Gov24Errors.httpError(503, "/api/gov24/v3/serviceList", 2, "", "test-service-key");
+            }
+            return page(pageNo, 100, 250, items(pageNo * 100 - 99, Math.min(pageNo * 100, 250)));
+        });
+
+        AtomicReference<SyncRunView> run = new AtomicReference<>();
+        List<String> warns;
+        try (Gov24RetrySyncSupport.Logs logs = Gov24RetrySyncSupport.Logs.watch()) {
+            assertThatCode(() -> run.set(syncService.runFull())).doesNotThrowAnyException();
+            warns = logs.at(ch.qos.logback.classic.Level.WARN);
+        }
+
+        assertThat(run.get().status()).isEqualTo(SyncRunStatus.SUCCEEDED);
+        assertThat(secondPageCalls).as("503 뒤 재시도").hasValue(2);
+        String heartbeatWarn = "io.github.cheatiskey.subsidy.ingestion.SyncService WARN 동기화 run=" + run.get().runId()
+                + " heartbeat 갱신 실패: org.springframework.dao.DataAccessResourceFailureException";
+        assertThat(warns.stream().filter(line -> line.contains("heartbeat")).toList())
+                .as("호출 4번(1, 2, 2 재시도, 3페이지)마다 한 줄, 메시지·키 없음")
+                .containsExactly(heartbeatWarn, heartbeatWarn, heartbeatWarn, heartbeatWarn);
+    }
+
+    @Test
     @DisplayName("SYNC-6-F10 1페이지가 응답 타임아웃(TIMEOUT)으로 4번 모두 실패 → 호출 4번, FAILED SOURCE_UNAVAILABLE, 실패 행 (LIST,1,null,TIMEOUT,4), 저장 없음, 예외 없음")
     void f10_firstPageTimeoutFailsRun() {
         AtomicInteger firstPageCalls = new AtomicInteger();
