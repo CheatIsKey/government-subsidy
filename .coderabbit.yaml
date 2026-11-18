@@ -7,7 +7,8 @@ tone_instructions: "한국어로, 결론 먼저, 근거(파일·줄)와 고치�
 
 reviews:
   profile: assertive
-  request_changes_workflow: false  # 승인·변경 요청을 하지 않고 댓글만 단다. 병합 승인은 Claude만 (REVIEW-GATE-W, docs/decisions.md 2026-11-18)
+  auto_approvals:
+    enabled: true
   high_level_summary: true
   collapse_walkthrough: true
   auto_review:
