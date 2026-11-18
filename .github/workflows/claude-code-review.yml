@@ -14,7 +14,7 @@ on:
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false
+    if: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
