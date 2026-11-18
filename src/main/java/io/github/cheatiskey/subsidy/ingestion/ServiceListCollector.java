@@ -46,7 +46,7 @@ public class ServiceListCollector {
     /**
      * 목록을 처음부터 끝까지 모은다. 페이지 하나를 처리할 때마다 listener에 알린다
      * (실행 기록을 페이지마다 커밋하기 위해, SYNC-9-E1).
-     * 공공 API 실패는 던지지 않고 결과에 남긴다. 401·403이나 1페이지 실패면 멈추고 stop을 채운다 (SYNC-6).
+     * 공공 API 실패는 던지지 않고 결과에 남긴다. 401·403이나 1페이지 호출이 끝내 실패하면 멈추고 stop을 채운다 (SYNC-6). 1페이지가 200이지만 해석할 수 없으면(SYNC-1-E4) 멈추되 stop은 비워 둔다.
      * 공공 API가 아닌 예외는 재시도 없이 그대로 던진다 (SYNC-6-F12).
      */
     public ListCollectionResult collect(int perPage, PageListener listener) {

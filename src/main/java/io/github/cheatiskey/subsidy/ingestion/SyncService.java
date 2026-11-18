@@ -124,7 +124,7 @@ public class SyncService {
     private SyncOutcome apply(long runId, ListCollectionResult collected) {
         Integer totalCount = collected.sourceTotalCount();
         if (collected.stop() != null) {
-            // SYNC-6: 401·403 또는 1페이지 실패. 이미 받은 페이지도 저장하지 않는다.
+            // SYNC-6: 401·403 또는 1페이지 호출이 끝내 실패. 이미 받은 페이지도 저장하지 않는다. (1페이지 해석 실패는 아래 totalCount == null)
             return SyncOutcome.failed(collected.stop().errorCode(), collected.stop().message(), totalCount, 0);
         }
         if (totalCount == null) {
