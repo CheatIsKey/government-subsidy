@@ -115,13 +115,14 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 | ~~워크플로 파일 변경으로 우회 가능~~ → **해결(2026-11-18, W29 잠금은 병합 뒤 시험으로 확인)**. PR이 판정 확인 단계를 지우거나 성공 명령으로 바꾸면 `review`가 초록이 될 수 있었다 | dev 규칙에 승인 1개 필수(아래 "후속"). CodeRabbit 승인도 1개로 세는 빈틈(W29)은 CODEOWNERS로 잠근 파일에 코드 주인 승인을 요구해 막음. `pull_request_target` 별도 검사(a)는 고르지 않음: 폴링이 필요하고, 같은 이름 가짜 검사를 막는 보장이 없음 |
 | main 대상 PR(릴리스)은 main의 판정 스크립트로 판정하는데, main에는 아직 스크립트가 없고 main 규칙의 우회 목록도 비어 있음 | 첫 릴리스 때 dev와 같은 승인 필수 규칙도 함께 적용 (2026-11-18 결정) |
 
-## 후속: 워크플로 파일 변경 우회 막기 (2026-11-18, 케이스 REVIEW-GATE-W01~W28)
+## 후속: 워크플로 파일 변경 우회 막기 (2026-11-18, 케이스 REVIEW-GATE-W01~W30)
 
 **검사 초록불 대신 "다른 계정이 이 커밋을 승인했는가"로 병합을 막는다.** 시험장에 비유하면, 응시자가 감독관 자리를 치워도 합격 도장(승인)이 있어야 붙게 바꿨다. 보조 감독관(CodeRabbit)의 도장 규칙을 응시자가 고칠 수 있는 빈틈(W29)은, 그 규칙지를 주인 서랍(CODEOWNERS)에 넣고 주인 도장을 따로 요구해 막았다.
 
 | 바꾼 것 | 값 |
 |---|---|
-| dev 규칙 pull_request | 승인 1개 필수, 새 push 때 옛 승인 무효, 마지막 push 이후 승인 필수 (필수 검사 test·review 유지) |
+| dev 규칙 pull_request | 승인 1개 필수, 새 push 때 옛 승인 무효, 마지막 push 이후 승인 필수, 코드 주인 승인 필수(W29), 출처 불명 변경 시 추가 승인 (필수 검사 test·review 유지) |
+| `.github/CODEOWNERS` | `/.coderabbit.yaml`·`/.github/`를 @CheatIsKey 소유로 잠금 (W29, 기준 브랜치에서 읽음) |
 | CodeRabbit | `auto_approvals.enabled: false` (옛 이름 `request_changes_workflow`. 승인 안 함, 댓글만) |
 | 워크플로 파일 | 바꾸지 않음 (그래야 이 PR도 Claude가 정상 리뷰) |
 
@@ -130,7 +131,7 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 | PR | 케이스 | 한 일 | review 검사 | 병합 |
 |---|---|---|---|---|
 | #16 | W04 + W09 | 판정 확인 단계 삭제, `@coderabbitai approve` 댓글 | **성공** (예전이면 병합 가능했던 경로) | 막힘 (REVIEW_REQUIRED). CodeRabbit은 "Approval is disabled"로 승인 거부 |
-| #21 | W29 (확인 필요) | PR 쪽 `.coderabbit.yaml`에서 승인 켜기, `@coderabbitai approve` 댓글 | 실패 (Claude 변경 요청) | **CodeRabbit APPROVED**. Claude 변경 요청으로만 막힘 → 빈틈 |
+| #21 | W29 | PR 쪽 `.coderabbit.yaml`에서 승인 켜기, `@coderabbitai approve` 댓글 | 실패 (Claude 변경 요청) | **CodeRabbit APPROVED**. Claude 변경 요청으로만 막힘 → 빈틈 확인, 결정 A(CODEOWNERS 잠금)로 막음. PR #20 병합 뒤 다시 시험 |
 | #17 | W05 | review 작업 `if: false` | 건너뜀(SKIPPED) | 막힘 (REVIEW_REQUIRED) |
 | #18 | W21 | 워크플로 주석 한 줄만 수정 | 실패 (Claude 건너뜀 → 판정 없음) | 막힘. 정상 수정이라도 관리자 우회 필요 (W08) |
 | #19 | W06 | 같은 이름 `review` 가짜 워크플로 추가 | 가짜 성공 + 진짜 실패 | 막힘 (Claude CHANGES_REQUESTED) |
@@ -144,5 +145,5 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 |---|---|
 | W20 옛 커밋을 본 리뷰가 새 커밋에 붙어 승인으로 셈 (#15에서 실제 발생) | 다음 별도 PR: 판정 본문의 "검토 커밋" 확인 + 동시 실행 취소. 워크플로를 고치므로 관리자 우회 1번, 기록 |
 | 워크플로 머리 주석("판정이 없어 병합이 막힌다")이 실제와 다름 (#16처럼 단계를 지우면 review는 초록) | 위 W20 PR에서 함께 |
-| W29 PR 쪽 `.coderabbit.yaml`로 CodeRabbit 승인을 켤 수 있음 (#21) | CODEOWNERS 잠금 + 코드 주인 승인 필수로 막음(2026-11-18). PR #20 병합 뒤 시험 PR로 막히는지 확인 남음 |
+| W29 PR 쪽 `.coderabbit.yaml`로 CodeRabbit 승인을 켤 수 있음 (#21) | CODEOWNERS 잠금 + 코드 주인 승인 필수로 막음(2026-11-18). 병합 전 확인한 것: 규칙 값(gh api), CODEOWNERS 문법 오류 없음(codeowners/errors API, e793232 기준 `[]`). 실제로 막히는지는 PR #20 병합 뒤 시험 PR로 확인. 미룬 이유: CODEOWNERS는 기준 브랜치(dev)에서 읽어 병합 전에는 시험할 수 없음. 이 순서는 2026-11-18 사용자 결정 A(잠금 → 병합 → 시험)에 들어 있음. 설정·문서만 바뀌어 단위·회귀·통합 테스트 대상 코드는 없음 |
 | W13·W15·W17 | 검증 불가 (서버 쪽 / 다른 계정 필요 / 일부러 일으키지 않음) |
