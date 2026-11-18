@@ -718,7 +718,7 @@
 ## REVIEW-GATE-W 워크플로 파일 변경 우회 막기 (2026-11-18 승인)
 
 > 빈틈: `review` 작업은 PR 쪽 워크플로 파일로 돈다. PR이 `claude-code-review.yml`을 고치면 Claude 액션은 "워크플로 검증 실패 → 건너뜀"으로 **성공** 처리되고, 남은 지킴이는 판정 확인 단계뿐인데 그 단계도 PR이 고칠 수 있다. S1(판정 스크립트를 dev 원본으로)은 스크립트 변조만 막는다.
-> 설계 (b): dev 규칙(ruleset 27261060)의 pull_request 규칙에 **승인 1개 필수 · 새 push가 오면 옛 승인 무효(dismiss stale) · 마지막 push 이후 승인 필수**를 켠다. 필수 검사 `test`·`review`는 그대로 둔다. 승인할 수 있는 것은 쓰기 권한이 있는 계정뿐이고, 저장소 주인은 자기 PR을 승인할 수 없으며, GITHUB_TOKEN 승인은 저장소 설정으로 꺼져 있다. CodeRabbit은 `reviews.auto_approvals.enabled: false`(옛 이름 `request_changes_workflow`)로 승인을 내지 않게 한다. 단, CodeRabbit은 **PR 쪽** `.coderabbit.yaml`을 읽으므로 PR이 이 설정을 다시 켜면 CodeRabbit 승인이 생긴다(시험 PR #21, 아래 확인 필요). 이 길이 막히기 전까지 "남는 승인자는 Claude뿐"은 성립하지 않는다.
+> 설계 (b): dev 규칙(ruleset 27261060)의 pull_request 규칙에 **승인 1개 필수 · 새 push가 오면 옛 승인 무효(dismiss stale) · 마지막 push 이후 승인 필수**를 켠다. 필수 검사 `test`·`review`는 그대로 둔다. 승인할 수 있는 것은 쓰기 권한이 있는 계정뿐이고, 저장소 주인은 자기 PR을 승인할 수 없으며, GITHUB_TOKEN 승인은 저장소 설정으로 꺼져 있다. CodeRabbit은 `reviews.auto_approvals.enabled: false`(옛 이름 `request_changes_workflow`)로 승인을 내지 않게 한다. 단, CodeRabbit은 **PR 쪽** `.coderabbit.yaml`을 읽으므로 PR이 이 설정을 다시 켜면 CodeRabbit 승인이 생긴다(시험 PR #21). 이 길은 W29 결정 A(CODEOWNERS 잠금 + 코드 주인 승인 필수, 2026-11-18)로 막고, PR #20 병합 뒤 시험 PR로 확인한다.
 > 워크플로 파일을 고치지 않으므로 이 변경 PR도 Claude가 정상 리뷰한다(W26).
 > 남는 길: 관리자 우회(W14, 결정으로 유지)와 W20 경쟁(다음 별도 PR).
 
