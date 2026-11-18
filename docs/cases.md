@@ -731,7 +731,7 @@
 | REVIEW-GATE-W05 | 권한 | 판정 확인 단계를 성공 명령으로 바꾸거나, 작업 `if:`를 `false`로 바꿔 skipped로 만듦 | 승인 없음 → 병합 막힘 | 시험 PR (`if: false`) |
 | REVIEW-GATE-W06 | 권한 | 기존 파일은 그대로 두고 같은 작업 이름(`review`)으로 항상 성공하는 새 워크플로 추가 | 가짜 검사가 Claude 승인을 대신하지 못함. Claude가 BLOCK이면 막힘 | 시험 PR |
 | REVIEW-GATE-W07 | 권한 | W04와 W06을 함께 함 | 승인 없음 → 병합 막힘 | W04·W06 결과로 판단 (승인 여부만 보므로 같은 원리) |
-| REVIEW-GATE-W08 | 권한 | PR이 게이트 쪽 파일(워크플로·판정 스크립트)을 정상적인 이유로 고침 | Claude가 건너뛰므로 승인 없음 → 관리자 우회가 필요하고, 쓸 때마다 decisions.md에 기록 | W21과 같은 원리 |
+| REVIEW-GATE-W08 | 권한 | PR이 리뷰 워크플로 파일(`claude-code-review.yml`)을 정상적인 이유로 고침. 판정 스크립트만 고친 PR은 해당 없음: 워크플로가 그대로라 Claude가 정상 리뷰하고, 판정은 기준 브랜치 원본 스크립트로 함 | Claude가 건너뛰므로 승인 없음 → 관리자 우회가 필요하고, 쓸 때마다 decisions.md에 기록 | W21과 같은 원리 |
 | REVIEW-GATE-W09 | 권한 | 다른 봇(CodeRabbit)이 APPROVED를 냄 (`@coderabbitai approve` 명령 포함) + W04·W05 | 기준 설정(꺼짐)이면 승인 거부: #16에서 "Approval is disabled". **PR 쪽 설정을 켜면 승인함**: #21에서 APPROVED(그 PR은 Claude 변경 요청으로만 막힘) → 확인 필요 W29 | 시험 PR #16, #21 |
 | REVIEW-GATE-W10 | 권한 | 가짜 워크플로가 GITHUB_TOKEN으로 `gh pr review --approve` 시도 | 저장소 설정(Actions가 PR 승인 못 함)으로 거부 | 설정 확인 (GET) |
 | REVIEW-GATE-W11 | 권한 | 저장소 주인이 자기 PR을 승인하려 함 | GitHub이 거부, 승인 수에 안 들어감 | GitHub 기본 동작 (문서) |
