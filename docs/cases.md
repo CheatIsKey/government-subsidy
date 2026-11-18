@@ -731,8 +731,8 @@
 | REVIEW-GATE-W05 | 권한 | 판정 확인 단계를 성공 명령으로 바꾸거나, 작업 `if:`를 `false`로 바꿔 skipped로 만듦 | 승인 없음 → 병합 막힘 | 시험 PR (`if: false`) |
 | REVIEW-GATE-W06 | 권한 | 기존 파일은 그대로 두고 같은 작업 이름(`review`)으로 항상 성공하는 새 워크플로 추가 | 가짜 검사가 Claude 승인을 대신하지 못함. Claude가 BLOCK이면 막힘 | 시험 PR |
 | REVIEW-GATE-W07 | 권한 | W04와 W06을 함께 함 | 승인 없음 → 병합 막힘 | W04·W06 결과로 판단 (승인 여부만 보므로 같은 원리) |
-| REVIEW-GATE-W08 | 권한 | PR이 리뷰 워크플로 파일(`claude-code-review.yml`)을 정상적인 이유로 고침. 판정 스크립트만 고친 PR은 해당 없음: 워크플로가 그대로라 Claude가 정상 리뷰하고, 판정은 기준 브랜치 원본 스크립트로 함 | Claude가 건너뛰므로 승인 없음 → 관리자 우회가 필요하고, 쓸 때마다 decisions.md에 기록 | W21과 같은 원리 |
-| REVIEW-GATE-W09 | 권한 | 다른 봇(CodeRabbit)이 APPROVED를 냄 (`@coderabbitai approve` 명령 포함) + W04·W05 | 기준 설정(꺼짐)이면 승인 거부: #16에서 "Approval is disabled". **PR 쪽 설정을 켜면 승인함**: #21에서 APPROVED(그 PR은 Claude 변경 요청으로만 막힘) → 확인 필요 W29 | 시험 PR #16, #21 |
+| REVIEW-GATE-W08 | 권한 | PR이 `.github/` 아래 파일(리뷰 워크플로·판정 스크립트)이나 `.coderabbit.yaml`을 정상적인 이유로 고침 | 워크플로를 고치면 Claude가 건너뛰고, 그 밖의 파일도 W29 잠금(CODEOWNERS)으로 주인 승인이 필요함 → 관리자 우회가 필요하고, 쓸 때마다 decisions.md에 기록 | W21과 같은 원리 |
+| REVIEW-GATE-W09 | 권한 | 다른 봇(CodeRabbit)이 APPROVED를 냄 (`@coderabbitai approve` 명령 포함) + W04·W05 | 기준 설정(꺼짐)이면 승인 거부: #16에서 "Approval is disabled". **PR 쪽 설정을 켜면 승인함**: #21에서 APPROVED(그 PR은 Claude 변경 요청으로만 막힘) → W29(CODEOWNERS 잠금)로 막음 | 시험 PR #16, #21 |
 | REVIEW-GATE-W10 | 권한 | 가짜 워크플로가 GITHUB_TOKEN으로 `gh pr review --approve` 시도 | 저장소 설정(Actions가 PR 승인 못 함)으로 거부 | 설정 확인 (GET) |
 | REVIEW-GATE-W11 | 권한 | 저장소 주인이 자기 PR을 승인하려 함 | GitHub이 거부, 승인 수에 안 들어감 | GitHub 기본 동작 (문서) |
 | REVIEW-GATE-W12 | 권한 | PR이 `.claude/settings.json` hooks, `.mcp.json`, `CLAUDE.md`로 Claude 실행 중 명령 실행·지시 주입 시도 | PR 쪽 설정은 쓰이지 않음 (origin/dev에서 복원) | 회귀: 실행 로그의 복원 줄 확인 |
@@ -755,7 +755,12 @@
 
 검증 불가(기록만): W13·W15·W17.
 
-**확인 필요 W29 (2026-11-18, PR #20 Claude 리뷰 지적 → 시험 PR #21로 확인)**: PR이 `.coderabbit.yaml`에서 `auto_approvals.enabled: true`로 바꾸고 `@coderabbitai approve`를 부르면 CodeRabbit이 APPROVED를 낸다(승인 1개로 셈). 같은 PR이 W04처럼 판정 단계를 지워 Claude를 건너뛰게 하면 Claude 승인 없이 병합될 수 있다. 막는 방법은 사람 결정을 기다림.
+**W29 (2026-11-18, PR #20 Claude 리뷰 지적 → 시험 PR #21로 확인 → 같은 날 사용자 결정 A 승인)**: PR이 `.coderabbit.yaml`에서 `auto_approvals.enabled: true`로 바꾸고 `@coderabbitai approve`를 부르면 CodeRabbit이 APPROVED를 낸다(승인 1개로 셈). 같은 PR이 W04처럼 판정 단계를 지워 Claude를 건너뛰게 하면 Claude 승인 없이 병합될 수 있다.
+
+| ID | 분류 | 상황 | 기대 결과 | 확인 방법 |
+|---|---|---|---|---|
+| REVIEW-GATE-W29 | 권한 | PR이 `.coderabbit.yaml`에서 승인을 켜고 `@coderabbitai approve`로 CodeRabbit APPROVED를 받음 | `.github/CODEOWNERS`가 `.coderabbit.yaml`·`.github/`를 주인 소유로 잠그고 dev 규칙이 코드 주인 승인을 요구함 → CodeRabbit 승인은 주인 승인이 아니라 막힘. CODEOWNERS는 기준 브랜치에서 읽으므로 PR이 풀 수 없음 | 시험 PR (PR #20 병합 뒤) |
+| REVIEW-GATE-W30 | 경계 | 잠근 파일을 건드리지 않는 PR (예: `docs/`만 수정) | 코드 주인 승인 필요 없음. Claude 승인 1개로 병합 (지금과 같음) | 다음 일반 PR |
 자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
 
 ## 변경 기록 (사람이 빼거나 고친 케이스)
@@ -791,3 +796,4 @@
 | 2026-11-18 | 재시도 간격 상한 메모 (문구 좁힘) | "첫 재시도 때"가 틀림: 넘치는 간격을 쓰는 순번의 재시도 때만, 남는 간격은 영향 없음 | PR #15 Claude 리뷰 | — (동작 변경 없음) |
 | 2026-11-18 | 실패 메시지 code 값 다듬기 (#14 확인 항목) | 로그 줄 위조·큰 값 방지 검토. 1차는 승인된 설계(공공 API code만) 그대로 | PR #15 Claude 리뷰 제안 | — (동작 변경 없음) |
 | 2026-11-18 | REVIEW-GATE-W01~W28 | 케이스 28개 승인. W13·W15·W17은 검증 불가로 기록만, W20은 다음 별도 PR로 | 워크플로 파일 변경 우회 막기 | 사용자 |
+| 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 `.github/`·`.coderabbit.yaml` 전체로 넓힘 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |

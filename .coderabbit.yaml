@@ -8,7 +8,7 @@ tone_instructions: "한국어로, 결론 먼저, 근거(파일·줄)와 고치�
 reviews:
   profile: assertive
   # 승인(Approve)·`@coderabbitai approve` 명령을 끈다. 예전 키 request_changes_workflow는 이 값의 옛 이름(스키마: legacy alias)
-  # 주의: CodeRabbit은 PR 쪽 이 파일을 읽으므로 PR이 다시 켤 수 있다 (REVIEW-GATE-W09 확인 필요, 시험 PR #21)
+  # 주의: CodeRabbit은 PR 쪽 이 파일을 읽으므로 PR이 다시 켤 수 있다 (시험 PR #21). 그래서 .github/CODEOWNERS로 잠근다 (REVIEW-GATE-W29)
   auto_approvals:
     enabled: false
   high_level_summary: true
