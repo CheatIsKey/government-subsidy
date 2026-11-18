@@ -30,17 +30,28 @@ class SyncRunRecorder {
                 Long.class, type.name(), SyncRunStatus.RUNNING.name(), toDb(now), toDb(now));
     }
 
+    /** 공공 API를 한 번 부를 때마다 heartbeat를 갱신한다 (SYNC-6-E1). 호출한 쪽에 트랜잭션이 없으면 바로 커밋된다. */
+    void heartbeat(long runId, Instant now) {
+        jdbc.update("update sync_run set heartbeat_at = ? where id = ?", toDb(now), runId);
+    }
+
     /**
      * 페이지 하나의 진행을 자기 트랜잭션으로 따로 커밋한다 (SYNC-9-E1).
      * 실패한 페이지는 LIST 실패로 남기고 failed를 늘린다. 성공한 페이지는 fetched를 늘린다.
+     * 공공 API 호출이 끝내 실패한 페이지는 http_status, error_code, attempt_count, 예외 메시지를 남긴다 (SYNC-6).
      */
     void recordPage(long runId, CollectedPage page, Instant now) {
         transaction.executeWithoutResult(status -> {
             if (page.failed()) {
+                PageFailure failure = page.failure();
                 jdbc.update("""
-                        insert into sync_failure (run_id, stage, page, message)
-                        values (?, ?, ?, ?)""",
-                        runId, SyncStage.LIST.name(), page.page(), "목록 페이지 응답에 data가 없거나 해석할 수 없음");
+                        insert into sync_failure (run_id, stage, page, http_status, error_code, attempt_count, message)
+                        values (?, ?, ?, ?, ?, ?, ?)""",
+                        runId, SyncStage.LIST.name(), page.page(),
+                        failure == null ? null : failure.httpStatus(),
+                        failure == null ? null : failure.errorCode(),
+                        failure == null ? null : failure.attemptCount(),
+                        failure == null ? "목록 페이지 응답에 data가 없거나 해석할 수 없음" : page.failureMessage());
                 jdbc.update("update sync_run set failed = failed + 1, heartbeat_at = ? where id = ?",
                         toDb(now), runId);
             } else {

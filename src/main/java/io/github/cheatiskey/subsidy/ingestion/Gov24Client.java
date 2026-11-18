@@ -22,7 +22,7 @@ public class Gov24Client implements ServiceListSource {
 
     public Gov24Client(Gov24Properties properties) {
         this.properties = properties;
-        // HTTP/1.1 고정(기본 HTTP/2는 Upgrade: h2c를 보냄). 타임아웃을 설정하지 않으면 제한 없음.
+        // HTTP/1.1 고정(기본 HTTP/2는 Upgrade: h2c를 보냄). 타임아웃 기본값은 Gov24Properties가 채운다(SYNC-6-B5).
         HttpClient.Builder http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
         if (properties.connectTimeout() != null) {
             http.connectTimeout(properties.connectTimeout());
