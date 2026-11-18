@@ -5,6 +5,10 @@
 
 # CodeRabbit 설정: PR 쪽 파일을 읽으므로 승인 기능을 다시 켤 수 있다 (W29, 시험 PR #21)
 /.coderabbit.yaml @CheatIsKey
+# 다른 설정 원천도 함께 잠근다: .yml 철자, .coderabbit.config.ts, .coderabbit/ 디렉터리 (PR #20 Claude 리뷰 제안)
+/.coderabbit.yml @CheatIsKey
+/.coderabbit.config.ts @CheatIsKey
+/.coderabbit/ @CheatIsKey
 
 # 리뷰 워크플로·판정 스크립트·이 파일 자신
 /.github/ @CheatIsKey

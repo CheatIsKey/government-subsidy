@@ -121,8 +121,8 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 
 | 바꾼 것 | 값 |
 |---|---|
-| dev 규칙 pull_request | 승인 1개 필수, 새 push 때 옛 승인 무효, 마지막 push 이후 승인 필수, 코드 주인 승인 필수(W29), 출처 불명 변경 시 추가 승인 (필수 검사 test·review 유지) |
-| `.github/CODEOWNERS` | `/.coderabbit.yaml`·`/.github/`를 @CheatIsKey 소유로 잠금 (W29, 기준 브랜치에서 읽음) |
+| dev 규칙 pull_request | 승인 1개 필수, 새 push 때 옛 승인 무효, 마지막 push 이후 승인 필수, 코드 주인 승인 필수(W29), Copilot이 자기 이름으로 연 PR은 추가 승인(GitHub 기본값, 확인 필요 W31) (필수 검사 test·review 유지) |
+| `.github/CODEOWNERS` | CodeRabbit 설정 원천(`/.coderabbit.yaml`·`.yml`·`.config.ts`·`/.coderabbit/`)과 `/.github/`를 @CheatIsKey 소유로 잠금 (W29, 기준 브랜치에서 읽음) |
 | CodeRabbit | `auto_approvals.enabled: false` (옛 이름 `request_changes_workflow`. 승인 안 함, 댓글만) |
 | 워크플로 파일 | 바꾸지 않음 (그래야 이 PR도 Claude가 정상 리뷰) |
 

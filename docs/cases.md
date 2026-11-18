@@ -759,8 +759,10 @@
 
 | ID | 분류 | 상황 | 기대 결과 | 확인 방법 |
 |---|---|---|---|---|
-| REVIEW-GATE-W29 | 권한 | PR이 `.coderabbit.yaml`에서 승인을 켜고 `@coderabbitai approve`로 CodeRabbit APPROVED를 받음 | `.github/CODEOWNERS`가 `.coderabbit.yaml`·`.github/`를 주인 소유로 잠그고 dev 규칙이 코드 주인 승인을 요구함 → CodeRabbit 승인은 주인 승인이 아니라 막힘. CODEOWNERS는 기준 브랜치에서 읽으므로 PR이 풀 수 없음 | 시험 PR (PR #20 병합 뒤) |
+| REVIEW-GATE-W29 | 권한 | PR이 `.coderabbit.yaml`에서 승인을 켜고 `@coderabbitai approve`로 CodeRabbit APPROVED를 받음 | `.github/CODEOWNERS`가 CodeRabbit 설정 원천(`.coderabbit.yaml`·`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`)과 `.github/`를 주인 소유로 잠그고 dev 규칙이 코드 주인 승인을 요구함 → CodeRabbit 승인은 주인 승인이 아니라 막힘. CODEOWNERS는 기준 브랜치에서 읽으므로 PR이 풀 수 없음 | 시험 PR (PR #20 병합 뒤) |
 | REVIEW-GATE-W30 | 경계 | 잠근 파일을 건드리지 않는 PR (예: `docs/`만 수정) | 코드 주인 승인 필요 없음. Claude 승인 1개로 병합 (지금과 같음) | 다음 일반 PR |
+
+**확인 필요 W31 (2026-11-18, PR #20 Claude 리뷰 지적)**: dev 규칙 pull_request에 `require_extra_approval_for_unattributed_changes: true`가 켜져 있다. 우리가 켠 것이 아니라 GitHub 기본값이다(문서: 새 규칙·기존 규칙 모두 기본으로 켜짐, 공개 미리보기). 뜻은 "사람 대신 Copilot이 자기 이름으로 연 PR은 승인이 하나 더 필요"이고, 이 저장소는 Copilot이 PR을 열지 않으므로 지금은 효과가 없다. 그대로 둘지 끌지 사람 결정을 기다림.
 
 자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
 
@@ -797,4 +799,4 @@
 | 2026-11-18 | 재시도 간격 상한 메모 (문구 좁힘) | "첫 재시도 때"가 틀림: 넘치는 간격을 쓰는 순번의 재시도 때만, 남는 간격은 영향 없음 | PR #15 Claude 리뷰 | — (동작 변경 없음) |
 | 2026-11-18 | 실패 메시지 code 값 다듬기 (#14 확인 항목) | 로그 줄 위조·큰 값 방지 검토. 1차는 승인된 설계(공공 API code만) 그대로 | PR #15 Claude 리뷰 제안 | — (동작 변경 없음) |
 | 2026-11-18 | REVIEW-GATE-W01~W28 | 케이스 28개 승인. W13·W15·W17은 검증 불가로 기록만, W20은 다음 별도 PR로 | 워크플로 파일 변경 우회 막기 | 사용자 |
-| 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 `.github/`·`.coderabbit.yaml` 전체로 넓힘 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
+| 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 `.github/`·`.coderabbit.yaml` 전체로 넓힘 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
