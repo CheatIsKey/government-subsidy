@@ -742,7 +742,7 @@
 | REVIEW-GATE-W16 | 실패 | Claude가 정상 종료했지만 리뷰를 내지 않음 | 판정 NONE, 승인 없음 → 막힘. 작업 재실행으로 해결 | 기존 기록 (run 44214721047, 44220400107) |
 | REVIEW-GATE-W17 | 실패 | Claude 단계 오류·타임아웃 | 막힘 (F9) | 검증 불가 (일부러 일으키지 않음) |
 | REVIEW-GATE-W18 | 실패 | 실패한 `review`를 같은 커밋에서 다시 실행 | 새 판정, 마지막 것만 셈 (F8) | 기존 기록 (#15 재실행) |
-| REVIEW-GATE-W19 | 동시성 | Claude가 A를 승인한 뒤 B를 push | A의 승인은 무효(dismiss stale). B는 새 승인이 있어야 병합 | 시험 PR (이 PR) |
+| REVIEW-GATE-W19 | 동시성 | Claude가 A를 승인한 뒤 B를 push | A의 승인은 무효(dismiss stale). B는 새 승인이 있어야 병합 | 시험 PR (이 PR): 2026-11-18 확인. Claude 승인 5951754356(9fe31e0)이 df421d6 push로 DISMISSED(review_dismissed 06:29:06Z) |
 | REVIEW-GATE-W20 | 동시성 | A를 리뷰하던 실행이 B push 뒤에 판정을 내 B에 붙음 (#15 review 5949471717에서 실제 발생) | B는 B를 실제로 본 판정으로만 통과해야 함. 지금은 A 리뷰로 B가 통과할 수 있음 | **다음 별도 PR** (판정 본문의 "검토 커밋" 확인 + 동시 실행 취소) |
 | REVIEW-GATE-W21 | 경계 | `claude-code-review.yml` 주석 한 줄만 고친 PR | Claude 건너뜀 → 승인 없음 → 막힘. 관리자 우회 필요 (W08) | 시험 PR |
 | REVIEW-GATE-W22 | 경계 | dev의 워크플로가 바뀐 뒤 뒤처진 PR (워크플로를 건드리지 않음) | Claude 정상 실행 | 다음 워크플로 변경 때 확인 |
