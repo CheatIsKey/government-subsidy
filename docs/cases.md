@@ -764,6 +764,8 @@
 
 **확인 필요 W31 (2026-11-18, PR #20 Claude 리뷰 지적)**: dev 규칙 pull_request에 `require_extra_approval_for_unattributed_changes: true`가 켜져 있다. 우리가 켠 적은 없다. GitHub 규칙 문서(https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)의 "Additional approval for unattributed Copilot pull requests"는 "enabled by default, for both new and existing rulesets"(공개 미리보기)이고, Copilot이 사람 대신 자기 이름으로 연 PR에 승인을 하나 더 요구한다. 이 API 필드가 그 설정이라는 대응은 문서에 없어 **추정**이다. 추정이 맞으면 Copilot이 PR을 열지 않는 이 저장소에는 지금 효과가 없다. Claude가 Co-Authored-By로 함께 쓴 커밋까지 해당하는지는 확인 못 함(PR #20은 지금 승인 1개 기준으로 막히고 있어 이 설정이 승인 2개를 요구하는지는 병합 때 드러남). 그대로 둘지 끌지 사람 결정을 기다림.
 
+**확인 필요 W32 (2026-11-18, PR #20 Claude 리뷰 제안)**: CodeRabbit 스키마의 `reviews.auto_approvals.allow_author_approval`(기본 true)은 "PR 작성자가 자기 PR에서 `@coderabbitai approve`를 쓸 수 있음"이고, 설명에 "The pull request's branch configuration cannot re-enable this permission"이 있다(schema.v2.json 직접 확인). `.coderabbit.yaml`에 `allow_author_approval: false`를 두면 PR 쪽 설정이 승인을 다시 켜도 작성자의 승인 명령(시험 PR #21 경로)은 막힐 수 있다. 자동 승인은 막지 못하므로 W29 CODEOWNERS 잠금을 대신하지 않는 추가 한 겹이다. 넣을지 사람 결정을 기다림. 넣으면 효과는 병합 뒤 W29 시험 때 확인.
+
 자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
 
 ## 변경 기록 (사람이 빼거나 고친 케이스)
