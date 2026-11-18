@@ -762,9 +762,14 @@
 | REVIEW-GATE-W29 | 권한 | PR이 `.coderabbit.yaml`에서 승인을 켜고 `@coderabbitai approve`로 CodeRabbit APPROVED를 받음 | `.github/CODEOWNERS`가 CodeRabbit 설정 원천(`.coderabbit.yaml`·`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`)과 `.github/`를 주인 소유로 잠그고 dev 규칙이 코드 주인 승인을 요구함 → CodeRabbit 승인은 주인 승인이 아니라 막힘. CODEOWNERS는 기준 브랜치에서 읽으므로 PR이 풀 수 없음 | 시험 PR (PR #20 병합 뒤) |
 | REVIEW-GATE-W30 | 경계 | 잠근 파일을 건드리지 않는 PR (예: `docs/`만 수정) | 코드 주인 승인 필요 없음. Claude 승인 1개로 병합 (지금과 같음) | 다음 일반 PR |
 
-**확인 필요 W31 (2026-11-18, PR #20 Claude 리뷰 지적)**: dev 규칙 pull_request에 `require_extra_approval_for_unattributed_changes: true`가 켜져 있다. 우리가 켠 적은 없다. GitHub 규칙 문서(https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)의 "Additional approval for unattributed Copilot pull requests"는 "enabled by default, for both new and existing rulesets"(공개 미리보기)이고, Copilot이 사람 대신 자기 이름으로 연 PR에 승인을 하나 더 요구한다. 이 API 필드가 그 설정이라는 대응은 문서에 없어 **추정**이다. 추정이 맞으면 Copilot이 PR을 열지 않는 이 저장소에는 지금 효과가 없다. Claude가 Co-Authored-By로 함께 쓴 커밋까지 해당하는지는 확인 못 함(PR #20은 지금 승인 1개 기준으로 막히고 있어 이 설정이 승인 2개를 요구하는지는 병합 때 드러남). 그대로 둘지 끌지 사람 결정을 기다림.
+**W31 (2026-11-18, PR #20 Claude 리뷰 지적 → 같은 날 사용자 결정: 그대로 둠)**: dev 규칙 pull_request에 `require_extra_approval_for_unattributed_changes: true`가 켜져 있다. 우리가 켠 적은 없다. GitHub 규칙 문서(https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)의 "Additional approval for unattributed Copilot pull requests"는 "enabled by default, for both new and existing rulesets"(공개 미리보기)이고, Copilot이 사람 대신 자기 이름으로 연 PR에 승인을 하나 더 요구한다. 이 API 필드가 그 설정이라는 대응은 문서에 없어 **추정**이다. 추정이 맞으면 Copilot이 PR을 열지 않는 이 저장소에는 지금 효과가 없다. Claude가 Co-Authored-By로 함께 쓴 커밋까지 해당하는지는 확인 못 함(PR #20은 지금 승인 1개 기준으로 막히고 있어 이 설정이 승인 2개를 요구하는지는 병합 때 드러남). 사용자 결정으로 GitHub 기본값 그대로 둔다. PR #20 병합 때 승인을 몇 개 요구하는지 보고 추정을 확인한다.
 
-**확인 필요 W32 (2026-11-18, PR #20 Claude 리뷰 제안)**: CodeRabbit 스키마의 `reviews.auto_approvals.allow_author_approval`(기본 true)은 "PR 작성자가 자기 PR에서 `@coderabbitai approve`를 쓸 수 있음"이고, 설명에 "The pull request's branch configuration cannot re-enable this permission"이 있다(schema.v2.json 직접 확인). `.coderabbit.yaml`에 `allow_author_approval: false`를 두면 PR 쪽 설정이 승인을 다시 켜도 작성자의 승인 명령(시험 PR #21 경로)은 막힐 수 있다. 자동 승인은 막지 못하므로 W29 CODEOWNERS 잠금을 대신하지 않는 추가 한 겹이다. 넣을지 사람 결정을 기다림. 넣으면 효과는 병합 뒤 W29 시험 때 확인.
+**W32 (2026-11-18, PR #20 Claude 리뷰 제안 → 같은 날 사용자 결정: 넣음)**: CodeRabbit 스키마의 `reviews.auto_approvals.allow_author_approval`(기본 true)은 "PR 작성자가 자기 PR에서 `@coderabbitai approve`를 쓸 수 있음"이고, 설명에 "The pull request's branch configuration cannot re-enable this permission"이 있다(schema.v2.json 직접 확인). `.coderabbit.yaml`에 `allow_author_approval: false`를 두면 PR 쪽 설정이 승인을 다시 켜도 작성자의 승인 명령(시험 PR #21 경로)은 막힐 수 있다. 자동 승인은 막지 못하므로 W29 CODEOWNERS 잠금을 대신하지 않는 추가 한 겹이다. 사용자 결정으로 넣었다(`.coderabbit.yaml`). 효과는 병합 뒤 W29 시험 때 확인.
+
+| ID | 분류 | 상황 | 기대 결과 | 확인 방법 |
+|---|---|---|---|---|
+| REVIEW-GATE-W31 | 경계 | Copilot이 자기 이름으로 연 PR | GitHub 기본값대로 승인 2개 필요(추정). 사람이 연 PR은 승인 1개 | PR #20 병합 때 요구 승인 수 확인 |
+| REVIEW-GATE-W32 | 권한 | PR 작성자가 PR 쪽 설정으로 승인을 켜고 자기 PR에 `@coderabbitai approve` | `allow_author_approval: false`라 작성자 승인 명령 거부. PR 쪽 설정으로 다시 켤 수 없음(스키마) | 시험 PR (PR #20 병합 뒤, W29와 함께) |
 
 자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
 
@@ -802,3 +807,4 @@
 | 2026-11-18 | 실패 메시지 code 값 다듬기 (#14 확인 항목) | 로그 줄 위조·큰 값 방지 검토. 1차는 승인된 설계(공공 API code만) 그대로 | PR #15 Claude 리뷰 제안 | — (동작 변경 없음) |
 | 2026-11-18 | REVIEW-GATE-W01~W28 | 케이스 28개 승인. W13·W15·W17은 검증 불가로 기록만, W20은 다음 별도 PR로 | 워크플로 파일 변경 우회 막기 | 사용자 |
 | 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 CODEOWNERS 잠금 파일 전체로 넓히고, 우회 조건을 워크플로 파일 PR(누가 열었든)과 그 밖의 잠금 파일 PR(주인이 연 경우)로 나눔 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
+| 2026-11-18 | REVIEW-GATE-W31·W32 | W31: GitHub 기본값(Copilot PR 승인 하나 더) 그대로 둠. W32: CodeRabbit `allow_author_approval: false` 넣음 | PR #20 Claude 리뷰 지적·제안 | 사용자 |
