@@ -715,6 +715,47 @@
 해당 없음: 데이터 마이그레이션(저장 데이터 없음).
 테스트 수준: 단위 = 스크립트에 상태·본문을 넣어 실행. 리뷰 선택 단위 = 리뷰 선택 jq 필터에 고정 JSON. 가짜 gh = PATH 앞에 가짜 `gh`를 두고 `bash -eo pipefail`로 실행.
 
+## REVIEW-GATE-W 워크플로 파일 변경 우회 막기 (2026-11-18 승인)
+
+> 빈틈: `review` 작업은 PR 쪽 워크플로 파일로 돈다. PR이 `claude-code-review.yml`을 고치면 Claude 액션은 "워크플로 검증 실패 → 건너뜀"으로 **성공** 처리되고, 남은 지킴이는 판정 확인 단계뿐인데 그 단계도 PR이 고칠 수 있다. S1(판정 스크립트를 dev 원본으로)은 스크립트 변조만 막는다.
+> 설계 (b): dev 규칙(ruleset 27261060)의 pull_request 규칙에 **승인 1개 필수 · 새 push가 오면 옛 승인 무효(dismiss stale) · 마지막 push 이후 승인 필수**를 켠다. 필수 검사 `test`·`review`는 그대로 둔다. 승인할 수 있는 것은 쓰기 권한이 있는 계정뿐이고, 저장소 주인은 자기 PR을 승인할 수 없으며, GITHUB_TOKEN 승인은 저장소 설정으로 꺼져 있다. CodeRabbit은 `request_changes_workflow: false`로 승인·변경 요청을 내지 않게 한다. 그래서 남는 승인자는 Claude(`claude[bot]`)뿐이다.
+> 워크플로 파일을 고치지 않으므로 이 변경 PR도 Claude가 정상 리뷰한다(W26).
+> 남는 길: 관리자 우회(W14, 결정으로 유지)와 W20 경쟁(다음 별도 PR).
+
+| ID | 관점 | 상황 | 기대 결과 | 테스트 |
+|---|---|---|---|---|
+| REVIEW-GATE-W01 | 정상 | 워크플로를 고치지 않은 PR, Claude PASS, 형식 맞음 | `review` 성공, HEAD에 `claude[bot]` APPROVED, 병합 가능 | 시험 PR (이 PR) |
+| REVIEW-GATE-W02 | 정상 | 문서만 바뀐 PR | W01과 같음 | 시험 PR (이 PR, 문서 커밋) |
+| REVIEW-GATE-W03 | 정상 | Claude BLOCK (CHANGES_REQUESTED) | 병합 막힘 | 기존 기록 (#15 `8c95c6c`) |
+| REVIEW-GATE-W04 | 권한 | PR이 판정 확인 단계를 지움 | Claude 건너뜀, 승인 없음 → 병합 막힘 (`review`가 초록이어도) | 시험 PR |
+| REVIEW-GATE-W05 | 권한 | 판정 확인 단계를 성공 명령으로 바꾸거나, 작업 `if:`를 `false`로 바꿔 skipped로 만듦 | 승인 없음 → 병합 막힘 | 시험 PR (`if: false`) |
+| REVIEW-GATE-W06 | 권한 | 기존 파일은 그대로 두고 같은 작업 이름(`review`)으로 항상 성공하는 새 워크플로 추가 | 가짜 검사가 Claude 승인을 대신하지 못함. Claude가 BLOCK이면 막힘 | 시험 PR |
+| REVIEW-GATE-W07 | 권한 | W04와 W06을 함께 함 | 승인 없음 → 병합 막힘 | W04·W06 결과로 판단 (승인 여부만 보므로 같은 원리) |
+| REVIEW-GATE-W08 | 권한 | PR이 게이트 쪽 파일(워크플로·판정 스크립트)을 정상적인 이유로 고침 | Claude가 건너뛰므로 승인 없음 → 관리자 우회가 필요하고, 쓸 때마다 decisions.md에 기록 | W21과 같은 원리 |
+| REVIEW-GATE-W09 | 권한 | 다른 봇(CodeRabbit)이 APPROVED를 냄 (`@coderabbitai approve` 명령 포함) + W04·W05 | CodeRabbit은 승인을 내지 않음(설정 false). 낸다면 승인으로 세지므로 막히지 않음 → 결과를 기록 | 시험 PR (W04 PR에 명령 댓글) |
+| REVIEW-GATE-W10 | 권한 | 가짜 워크플로가 GITHUB_TOKEN으로 `gh pr review --approve` 시도 | 저장소 설정(Actions가 PR 승인 못 함)으로 거부 | 설정 확인 (GET) |
+| REVIEW-GATE-W11 | 권한 | 저장소 주인이 자기 PR을 승인하려 함 | GitHub이 거부, 승인 수에 안 들어감 | GitHub 기본 동작 (문서) |
+| REVIEW-GATE-W12 | 권한 | PR이 `.claude/settings.json` hooks, `.mcp.json`, `CLAUDE.md`로 Claude 실행 중 명령 실행·지시 주입 시도 | PR 쪽 설정은 쓰이지 않음 (origin/dev에서 복원) | 회귀: 실행 로그의 복원 줄 확인 |
+| REVIEW-GATE-W13 | 권한 | 가짜 워크플로가 직접 OIDC를 교환해 Claude 앱 토큰을 받으려 함 | 교환 거부 | 검증 불가 (서버 쪽) |
+| REVIEW-GATE-W14 | 권한 | 관리자가 우회로 병합 (`gh pr merge --admin` 포함) | 허용(결정으로 유지). Claude는 사용자가 그 PR에 대해 직접 말할 때만 쓰고, 쓰면 decisions.md에 기록 | 운영 규칙 |
+| REVIEW-GATE-W15 | 권한 | 포크 PR (비밀 값·OIDC 없음) | Claude 승인이 없으므로 병합 막힘 | 검증 불가 (다른 계정 필요) |
+| REVIEW-GATE-W16 | 실패 | Claude가 정상 종료했지만 리뷰를 내지 않음 | 판정 NONE, 승인 없음 → 막힘. 작업 재실행으로 해결 | 기존 기록 (run 44214721047, 44220400107) |
+| REVIEW-GATE-W17 | 실패 | Claude 단계 오류·타임아웃 | 막힘 (F9) | 검증 불가 (일부러 일으키지 않음) |
+| REVIEW-GATE-W18 | 실패 | 실패한 `review`를 같은 커밋에서 다시 실행 | 새 판정, 마지막 것만 셈 (F8) | 기존 기록 (#15 재실행) |
+| REVIEW-GATE-W19 | 동시성 | Claude가 A를 승인한 뒤 B를 push | A의 승인은 무효(dismiss stale). B는 새 승인이 있어야 병합 | 시험 PR (이 PR) |
+| REVIEW-GATE-W20 | 동시성 | A를 리뷰하던 실행이 B push 뒤에 판정을 내 B에 붙음 (#15 review 5949471717에서 실제 발생) | B는 B를 실제로 본 판정으로만 통과해야 함. 지금은 A 리뷰로 B가 통과할 수 있음 | **다음 별도 PR** (판정 본문의 "검토 커밋" 확인 + 동시 실행 취소) |
+| REVIEW-GATE-W21 | 경계 | `claude-code-review.yml` 주석 한 줄만 고친 PR | Claude 건너뜀 → 승인 없음 → 막힘. 관리자 우회 필요 (W08) | 시험 PR |
+| REVIEW-GATE-W22 | 경계 | dev의 워크플로가 바뀐 뒤 뒤처진 PR (워크플로를 건드리지 않음) | Claude 정상 실행 | 다음 워크플로 변경 때 확인 |
+| REVIEW-GATE-W23 | 경계 | draft PR → ready_for_review | draft는 병합 불가, ready가 되면 새로 실행 | GitHub 기본 동작 |
+| REVIEW-GATE-W24 | 실패 | CodeRabbit이 CHANGES_REQUESTED를 냄 | 설정 false라 내지 않음. CodeRabbit은 댓글만 다는 보조 리뷰어 | 설정 (`.coderabbit.yaml`) |
+| REVIEW-GATE-W25 | 릴리스 | dev→main PR | 이번에는 main 규칙을 바꾸지 않음. 첫 릴리스 때 같은 방식 적용 | 첫 릴리스 때 |
+| REVIEW-GATE-W26 | 부트스트랩 | 이 변경 PR 자체 | 워크플로를 고치지 않으므로 Claude가 정상 리뷰, 관리자 우회 없이 병합 | 이 PR |
+| REVIEW-GATE-W27 | 마이그레이션 | 규칙을 바꿀 때 열린 PR이 이미 받은 승인 | 바꾸기 직전 열린 PR 0개 확인 (2026-11-18) | 설정 확인 (GET) |
+| REVIEW-GATE-W28 | 마이그레이션 | 문서·주석 정합: 워크플로 머리 주석, tdd-log 03 "남은 것" | tdd-log는 이 PR, 워크플로 주석은 W20 PR에서 (워크플로를 고치면 Claude가 건너뛰므로) | 이 PR + 다음 PR |
+
+검증 불가(기록만): W13·W15·W17.
+자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
+
 ## 변경 기록 (사람이 빼거나 고친 케이스)
 
 | 날짜 | 케이스 ID | 변경 | 이유 | 결정한 사람 |
@@ -747,3 +788,4 @@
 | 2026-11-18 | 재시도 간격 상한 (2차로) | 1차에 넣지 않고 #14 확인 항목으로 | PR #15 Claude 리뷰 제안 | 사용자 |
 | 2026-11-18 | 재시도 간격 상한 메모 (문구 좁힘) | "첫 재시도 때"가 틀림: 넘치는 간격을 쓰는 순번의 재시도 때만, 남는 간격은 영향 없음 | PR #15 Claude 리뷰 | — (동작 변경 없음) |
 | 2026-11-18 | 실패 메시지 code 값 다듬기 (#14 확인 항목) | 로그 줄 위조·큰 값 방지 검토. 1차는 승인된 설계(공공 API code만) 그대로 | PR #15 Claude 리뷰 제안 | — (동작 변경 없음) |
+| 2026-11-18 | REVIEW-GATE-W01~W28 | 케이스 28개 승인. W13·W15·W17은 검증 불가로 기록만, W20은 다음 별도 PR로 | 워크플로 파일 변경 우회 막기 | 사용자 |
