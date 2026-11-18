@@ -799,4 +799,4 @@
 | 2026-11-18 | 재시도 간격 상한 메모 (문구 좁힘) | "첫 재시도 때"가 틀림: 넘치는 간격을 쓰는 순번의 재시도 때만, 남는 간격은 영향 없음 | PR #15 Claude 리뷰 | — (동작 변경 없음) |
 | 2026-11-18 | 실패 메시지 code 값 다듬기 (#14 확인 항목) | 로그 줄 위조·큰 값 방지 검토. 1차는 승인된 설계(공공 API code만) 그대로 | PR #15 Claude 리뷰 제안 | — (동작 변경 없음) |
 | 2026-11-18 | REVIEW-GATE-W01~W28 | 케이스 28개 승인. W13·W15·W17은 검증 불가로 기록만, W20은 다음 별도 PR로 | 워크플로 파일 변경 우회 막기 | 사용자 |
-| 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 `.github/`·`.coderabbit.yaml` 전체로 넓힘 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
+| 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 CODEOWNERS 잠금 파일 전체로 넓히고, 우회 조건을 워크플로 파일 PR(누가 열었든)과 그 밖의 잠금 파일 PR(주인이 연 경우)로 나눔 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
