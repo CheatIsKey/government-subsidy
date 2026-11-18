@@ -1,0 +1,8 @@
+name: Fake Review
+on:
+  pull_request:
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
