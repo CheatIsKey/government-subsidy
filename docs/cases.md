@@ -718,7 +718,7 @@
 ## REVIEW-GATE-W 워크플로 파일 변경 우회 막기 (2026-11-18 승인)
 
 > 빈틈: `review` 작업은 PR 쪽 워크플로 파일로 돈다. PR이 `claude-code-review.yml`을 고치면 Claude 액션은 "워크플로 검증 실패 → 건너뜀"으로 **성공** 처리되고, 남은 지킴이는 판정 확인 단계뿐인데 그 단계도 PR이 고칠 수 있다. S1(판정 스크립트를 dev 원본으로)은 스크립트 변조만 막는다.
-> 설계 (b): dev 규칙(ruleset 27261060)의 pull_request 규칙에 **승인 1개 필수 · 새 push가 오면 옛 승인 무효(dismiss stale) · 마지막 push 이후 승인 필수**를 켠다. 필수 검사 `test`·`review`는 그대로 둔다. 승인할 수 있는 것은 쓰기 권한이 있는 계정뿐이고, 저장소 주인은 자기 PR을 승인할 수 없으며, GITHUB_TOKEN 승인은 저장소 설정으로 꺼져 있다. CodeRabbit은 `request_changes_workflow: false`로 승인·변경 요청을 내지 않게 한다. 그래서 남는 승인자는 Claude(`claude[bot]`)뿐이다.
+> 설계 (b): dev 규칙(ruleset 27261060)의 pull_request 규칙에 **승인 1개 필수 · 새 push가 오면 옛 승인 무효(dismiss stale) · 마지막 push 이후 승인 필수**를 켠다. 필수 검사 `test`·`review`는 그대로 둔다. 승인할 수 있는 것은 쓰기 권한이 있는 계정뿐이고, 저장소 주인은 자기 PR을 승인할 수 없으며, GITHUB_TOKEN 승인은 저장소 설정으로 꺼져 있다. CodeRabbit은 `reviews.auto_approvals.enabled: false`(옛 이름 `request_changes_workflow`)로 승인을 내지 않게 한다. 단, CodeRabbit은 **PR 쪽** `.coderabbit.yaml`을 읽으므로 PR이 이 설정을 다시 켜면 CodeRabbit 승인이 생긴다(시험 PR #21, 아래 확인 필요). 이 길이 막히기 전까지 "남는 승인자는 Claude뿐"은 성립하지 않는다.
 > 워크플로 파일을 고치지 않으므로 이 변경 PR도 Claude가 정상 리뷰한다(W26).
 > 남는 길: 관리자 우회(W14, 결정으로 유지)와 W20 경쟁(다음 별도 PR).
 
@@ -732,7 +732,7 @@
 | REVIEW-GATE-W06 | 권한 | 기존 파일은 그대로 두고 같은 작업 이름(`review`)으로 항상 성공하는 새 워크플로 추가 | 가짜 검사가 Claude 승인을 대신하지 못함. Claude가 BLOCK이면 막힘 | 시험 PR |
 | REVIEW-GATE-W07 | 권한 | W04와 W06을 함께 함 | 승인 없음 → 병합 막힘 | W04·W06 결과로 판단 (승인 여부만 보므로 같은 원리) |
 | REVIEW-GATE-W08 | 권한 | PR이 게이트 쪽 파일(워크플로·판정 스크립트)을 정상적인 이유로 고침 | Claude가 건너뛰므로 승인 없음 → 관리자 우회가 필요하고, 쓸 때마다 decisions.md에 기록 | W21과 같은 원리 |
-| REVIEW-GATE-W09 | 권한 | 다른 봇(CodeRabbit)이 APPROVED를 냄 (`@coderabbitai approve` 명령 포함) + W04·W05 | CodeRabbit은 승인을 내지 않음(설정 false). 낸다면 승인으로 세지므로 막히지 않음 → 결과를 기록 | 시험 PR (W04 PR에 명령 댓글) |
+| REVIEW-GATE-W09 | 권한 | 다른 봇(CodeRabbit)이 APPROVED를 냄 (`@coderabbitai approve` 명령 포함) + W04·W05 | 기준 설정(꺼짐)이면 승인 거부: #16에서 "Approval is disabled". **PR 쪽 설정을 켜면 승인함**: #21에서 APPROVED(그 PR은 Claude 변경 요청으로만 막힘) → 확인 필요 W29 | 시험 PR #16, #21 |
 | REVIEW-GATE-W10 | 권한 | 가짜 워크플로가 GITHUB_TOKEN으로 `gh pr review --approve` 시도 | 저장소 설정(Actions가 PR 승인 못 함)으로 거부 | 설정 확인 (GET) |
 | REVIEW-GATE-W11 | 권한 | 저장소 주인이 자기 PR을 승인하려 함 | GitHub이 거부, 승인 수에 안 들어감 | GitHub 기본 동작 (문서) |
 | REVIEW-GATE-W12 | 권한 | PR이 `.claude/settings.json` hooks, `.mcp.json`, `CLAUDE.md`로 Claude 실행 중 명령 실행·지시 주입 시도 | PR 쪽 설정은 쓰이지 않음 (origin/dev에서 복원) | 회귀: 실행 로그의 복원 줄 확인 |
@@ -747,13 +747,15 @@
 | REVIEW-GATE-W21 | 경계 | `claude-code-review.yml` 주석 한 줄만 고친 PR | Claude 건너뜀 → 승인 없음 → 막힘. 관리자 우회 필요 (W08) | 시험 PR |
 | REVIEW-GATE-W22 | 경계 | dev의 워크플로가 바뀐 뒤 뒤처진 PR (워크플로를 건드리지 않음) | Claude 정상 실행 | 다음 워크플로 변경 때 확인 |
 | REVIEW-GATE-W23 | 경계 | draft PR → ready_for_review | draft는 병합 불가, ready가 되면 새로 실행 | GitHub 기본 동작 |
-| REVIEW-GATE-W24 | 실패 | CodeRabbit이 CHANGES_REQUESTED를 냄 | 설정 false라 내지 않음. CodeRabbit은 댓글만 다는 보조 리뷰어 | 설정 (`.coderabbit.yaml`) |
+| REVIEW-GATE-W24 | 실패 | CodeRabbit이 CHANGES_REQUESTED를 냄 | 승인 기능(`auto_approvals`)이 꺼져 있으면 승인·변경 요청을 내지 않음. CodeRabbit은 댓글만 다는 보조 리뷰어. PR 쪽 설정으로 켜지는 문제는 W29 | 설정 (`.coderabbit.yaml`) |
 | REVIEW-GATE-W25 | 릴리스 | dev→main PR | 이번에는 main 규칙을 바꾸지 않음. 첫 릴리스 때 같은 방식 적용 | 첫 릴리스 때 |
 | REVIEW-GATE-W26 | 부트스트랩 | 이 변경 PR 자체 | 워크플로를 고치지 않으므로 Claude가 정상 리뷰, 관리자 우회 없이 병합 | 이 PR |
 | REVIEW-GATE-W27 | 마이그레이션 | 규칙을 바꿀 때 열린 PR이 이미 받은 승인 | 바꾸기 직전 열린 PR 0개 확인 (2026-11-18) | 설정 확인 (GET) |
 | REVIEW-GATE-W28 | 마이그레이션 | 문서·주석 정합: 워크플로 머리 주석, tdd-log 03 "남은 것" | tdd-log는 이 PR, 워크플로 주석은 W20 PR에서 (워크플로를 고치면 Claude가 건너뛰므로) | 이 PR + 다음 PR |
 
 검증 불가(기록만): W13·W15·W17.
+
+**확인 필요 W29 (2026-11-18, PR #20 Claude 리뷰 지적 → 시험 PR #21로 확인)**: PR이 `.coderabbit.yaml`에서 `auto_approvals.enabled: true`로 바꾸고 `@coderabbitai approve`를 부르면 CodeRabbit이 APPROVED를 낸다(승인 1개로 셈). 같은 PR이 W04처럼 판정 단계를 지워 Claude를 건너뛰게 하면 Claude 승인 없이 병합될 수 있다. 막는 방법은 사람 결정을 기다림.
 자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
 
 ## 변경 기록 (사람이 빼거나 고친 케이스)

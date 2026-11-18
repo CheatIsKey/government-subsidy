@@ -122,7 +122,7 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 | 바꾼 것 | 값 |
 |---|---|
 | dev 규칙 pull_request | 승인 1개 필수, 새 push 때 옛 승인 무효, 마지막 push 이후 승인 필수 (필수 검사 test·review 유지) |
-| CodeRabbit | `request_changes_workflow: false` (승인·변경 요청 안 함, 댓글만) |
+| CodeRabbit | `auto_approvals.enabled: false` (옛 이름 `request_changes_workflow`. 승인 안 함, 댓글만) |
 | 워크플로 파일 | 바꾸지 않음 (그래야 이 PR도 Claude가 정상 리뷰) |
 
 ### 시험 PR 결과 (설정 적용 뒤, 모두 닫음)
@@ -130,6 +130,7 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 | PR | 케이스 | 한 일 | review 검사 | 병합 |
 |---|---|---|---|---|
 | #16 | W04 + W09 | 판정 확인 단계 삭제, `@coderabbitai approve` 댓글 | **성공** (예전이면 병합 가능했던 경로) | 막힘 (REVIEW_REQUIRED). CodeRabbit은 "Approval is disabled"로 승인 거부 |
+| #21 | W29 (확인 필요) | PR 쪽 `.coderabbit.yaml`에서 승인 켜기, `@coderabbitai approve` 댓글 | 실패 (Claude 변경 요청) | **CodeRabbit APPROVED**. Claude 변경 요청으로만 막힘 → 빈틈 |
 | #17 | W05 | review 작업 `if: false` | 건너뜀(SKIPPED) | 막힘 (REVIEW_REQUIRED) |
 | #18 | W21 | 워크플로 주석 한 줄만 수정 | 실패 (Claude 건너뜀 → 판정 없음) | 막힘. 정상 수정이라도 관리자 우회 필요 (W08) |
 | #19 | W06 | 같은 이름 `review` 가짜 워크플로 추가 | 가짜 성공 + 진짜 실패 | 막힘 (Claude CHANGES_REQUESTED) |
@@ -143,4 +144,5 @@ PR #8에서 7번, PR #10에서 2번, 모두 9번 Claude 리뷰는 전부 PASS였
 |---|---|
 | W20 옛 커밋을 본 리뷰가 새 커밋에 붙어 승인으로 셈 (#15에서 실제 발생) | 다음 별도 PR: 판정 본문의 "검토 커밋" 확인 + 동시 실행 취소. 워크플로를 고치므로 관리자 우회 1번, 기록 |
 | 워크플로 머리 주석("판정이 없어 병합이 막힌다")이 실제와 다름 (#16처럼 단계를 지우면 review는 초록) | 위 W20 PR에서 함께 |
+| W29 PR 쪽 `.coderabbit.yaml`로 CodeRabbit 승인을 켤 수 있음 (#21) | 확인 필요, 사람 결정 대기 |
 | W13·W15·W17 | 검증 불가 (서버 쪽 / 다른 계정 필요 / 일부러 일으키지 않음) |
