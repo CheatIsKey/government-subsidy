@@ -1,7 +1,7 @@
 # PR이 열리거나 새 커밋이 올라올 때마다 Claude가 리뷰하고 PASS 또는 BLOCK을 판정한다.
 #   PASS  → Claude가 PR을 Approve, 이 작업(review) 성공
 #   BLOCK → Claude가 Request changes, 이 작업 실패 → 브랜치 규칙의 필수 검사라서 병합이 막힘
-# 출처: https://code.claude.com/docs/en/github-actions.md
+# 출처: https://code.claude.com/docs/en/github-actions.md 
 # 필요한 것: 저장소 Secret CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`), Claude GitHub App 설치
 # 주의: 이 파일은 기본 브랜치(dev)에 있는 내용과 같아야 Claude가 실행된다.
 #       이 파일을 고치는 PR은 Claude가 건너뛰므로 판정이 없어 병합이 막힌다(안전한 쪽으로 실패).
