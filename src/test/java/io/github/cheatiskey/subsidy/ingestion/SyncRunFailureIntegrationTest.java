@@ -192,13 +192,14 @@ class SyncRunFailureIntegrationTest extends SyncIntegrationTestSupport {
                 .isEqualTo(error.getClass().getName());
     }
 
-    /** ERROR 로그가 정확히 1건이고, 예외 클래스 이름과 실행 번호(run=n, 뒤에 숫자가 더 붙지 않음)만 있고 예외 메시지·키는 없다. */
+    /**
+     * 앱 전체 ERROR 로그가 정확히 이 한 줄이다: 로거·레벨, 실행 번호, 예외 클래스 전체 이름만 (SYNC-6-F12).
+     * 한 줄 전체를 비교하므로 예외 메시지·키뿐 아니라 그 밖에 덧붙은 내용도 잡는다.
+     */
     private static void assertSingleErrorLog(List<String> errors, RuntimeException error, long runId) {
-        assertThat(errors).as("앱 전체 ERROR 로그").hasSize(1);
-        assertThat(errors.get(0))
-                .contains(error.getClass().getSimpleName())
-                .containsPattern("\\brun=" + runId + "(?!\\d)")
-                .doesNotContain(error.getMessage(), "test-service-key");
+        assertThat(errors).as("앱 전체 ERROR 로그").containsExactly(
+                "io.github.cheatiskey.subsidy.ingestion.SyncService ERROR 동기화 run=" + runId
+                        + " 공공 API가 아닌 예외로 중단: " + error.getClass().getName());
     }
 
     @ParameterizedTest(name = "[{index}] {0}")
