@@ -91,13 +91,22 @@ public class SyncService {
         return queryService.find(runId).orElseThrow();
     }
 
-    /** 공공 API를 부를 때마다(성공·실패 모두) heartbeat를 갱신한다 (SYNC-6-E1). */
+    /**
+     * 공공 API를 부를 때마다(성공·실패 모두) heartbeat를 갱신한다 (SYNC-6-E1).
+     * heartbeat 갱신이 실패해도 공공 API 결과(성공 값·예외)를 그대로 진행한다 (SYNC-6-E1b).
+     */
     private ServiceListSource withHeartbeat(long runId) {
         return (page, perPage) -> {
             try {
                 return source.fetchPage(page, perPage);
             } finally {
-                recorder.heartbeat(runId, clock.instant());
+                try {
+                    recorder.heartbeat(runId, clock.instant());
+                } catch (RuntimeException heartbeatFailure) {
+                    // heartbeat는 살아 있음 표시일 뿐이라 실패해도 공공 API 결과(성공 값·예외)를 그대로 진행 (SYNC-6-E1b).
+                    // 예외 메시지에 비밀이 있을 수 있어 클래스 이름만 남긴다.
+                    log.warn("동기화 run={} heartbeat 갱신 실패: {}", runId, heartbeatFailure.getClass().getName());
+                }
             }
         };
     }

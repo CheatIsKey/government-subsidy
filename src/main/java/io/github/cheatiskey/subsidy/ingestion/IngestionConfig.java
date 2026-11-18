@@ -11,10 +11,16 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties({Gov24Properties.class, Gov24RetryProperties.class})
 class IngestionConfig {
 
-    /** 재시도 사이에 실제로 기다린다 (SYNC-6). 기다리다 끊기면 중단 표시를 되살리고 멈춘다. */
+    /**
+     * 재시도 사이에 실제로 기다린다 (SYNC-6). 기다리다 끊기면 중단 표시를 되살리고 멈춘다.
+     * 간격이 0초여도 중단 표시를 먼저 확인한다 (SYNC-6-F13).
+     */
     @Bean
     Sleeper retrySleeper() {
         return duration -> {
+            if (Thread.currentThread().isInterrupted()) { // 간격이 0초여도 종료 신호를 먼저 확인 (SYNC-6-F13). 중단 표시는 지우지 않는다
+                throw new IllegalStateException("재시도 대기 중 중단됨");
+            }
             try {
                 TimeUnit.NANOSECONDS.sleep(duration.toNanos());
             } catch (InterruptedException e) {
