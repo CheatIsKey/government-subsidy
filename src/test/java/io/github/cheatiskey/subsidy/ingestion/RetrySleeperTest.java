@@ -33,6 +33,40 @@ class RetrySleeperTest {
     }
 
     @Test
+    @DisplayName("SYNC-6-F13 5초를 기다리는 도중에 다른 스레드가 중단 신호 → 바로 IllegalStateException, 중단 표시는 되살아남 (대기 중 catch 경로)")
+    void f13_interruptArrivingDuringSleepFailsFastAndRestoresFlag() throws Exception {
+        Thread sleeping = Thread.currentThread();
+        Thread interrupter = new Thread(() -> {
+            try {
+                Thread.sleep(100); // 확실히 잠든 뒤에 신호를 보낸다
+            } catch (InterruptedException ignored) {
+                return;
+            }
+            sleeping.interrupt();
+        });
+        long start = System.nanoTime();
+        interrupter.start();
+
+        Throwable thrown = catchThrowable(() -> sleeper.sleep(Duration.ofSeconds(5)));
+        interrupter.join();
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(3));
+        assertThat(Thread.interrupted()).as("중단 표시 (InterruptedException이 지운 것을 되살림)").isTrue();
+    }
+
+    @Test
+    @DisplayName("SYNC-6-F13 (짝) 중단 표시가 없으면 300ms를 실제로 기다린다 (첫 호출의 클래스 적재 시간에 기대지 않도록 충분히 길게)")
+    void f13_sleepActuallyWaits() {
+        sleeper.sleep(Duration.ofMillis(1)); // 첫 호출 준비 비용을 측정에서 뺀다
+        long start = System.nanoTime();
+
+        sleeper.sleep(Duration.ofMillis(300));
+
+        assertThat(Duration.ofNanos(System.nanoTime() - start)).isGreaterThanOrEqualTo(Duration.ofMillis(300));
+    }
+
+    @Test
     @DisplayName("SYNC-6-F13 간격 0초여도 중단 표시가 켜져 있으면 → IllegalStateException, 중단 표시 유지 (JDK sleep(0)은 중단을 확인하지 않음)")
     void f13_interruptedZeroSleepStillFails() {
         Thread.currentThread().interrupt();
