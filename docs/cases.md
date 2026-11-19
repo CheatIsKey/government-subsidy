@@ -784,7 +784,7 @@
 | ID | 분류 | 상황 | 기대 결과 | 확인 방법 |
 |---|---|---|---|---|
 | REVIEW-GATE-G01 | 정상 | docs/·src/만 바꾼 PR | `locked-files` 성공. Claude 승인 + test·review 성공이면 병합 가능 | 시험 PR |
-| REVIEW-GATE-G02 | 정상 | `.coderabbit.yaml` 자동 승인 켬 + 판정 단계 삭제 + `@coderabbitai approve` (#22 재현) | CodeRabbit 승인·review 초록이어도 `locked-files` 실패("잠긴 파일 변경: .coderabbit.yaml, .github/workflows/claude-code-review.yml") → 병합 막힘, 관리자 우회로만 병합 | 시험 PR |
+| REVIEW-GATE-G02 | 정상 | `.coderabbit.yaml` 자동 승인 켬 + 판정 단계 삭제 + `@coderabbitai approve` (#22 재현) | CodeRabbit 승인·review 초록이어도 `locked-files` 실패(경로마다 `::error::잠긴 파일 변경: <경로>` 한 줄씩, Q13: `.coderabbit.yaml`, `.github/workflows/claude-code-review.yml`) → 병합 막힘, 관리자 우회로만 병합 | 시험 PR |
 | REVIEW-GATE-G03 | 예외 | 잠긴 경로 하나씩: `.github/workflows/x.yml`, `.github/scripts/check-claude-verdict.sh`, `.github/CODEOWNERS`, `.coderabbit.yaml`, `.coderabbit.yml`, `.coderabbit.config.ts`, `.coderabbit/foo.md` | 7가지 모두 실패, 걸린 경로 출력 | 단위 테스트 |
 | REVIEW-GATE-G04 | 경계 | 비슷한 이름: `docs/.github/x.md`, `.githubx/a`, `.github-notes.md`, `.coderabbit.yaml.bak`, `.coderabbitignore`, `src/.coderabbit.yaml` | 모두 성공(잠금 대상 아님) | 단위 테스트 |
 | REVIEW-GATE-G05 | 경계 | 이름 바꾸기: 잠금→밖(`.github/scripts/a.sh`→`docs/a.sh`), 밖→잠금(`docs/a.yml`→`.github/workflows/a.yml`) | 둘 다 실패 | 단위 테스트 |
