@@ -1,6 +1,6 @@
 name: Locked Files Guard
 
-# 잠금 파일(.github/, .coderabbit* 등)을 건드리는 PR을 막는 경비 검사.
+# 잠금 파일(.github/·.coderabbit/ 아래 전부, .coderabbit.yaml·.coderabbit.yml·.coderabbit.config.ts, 루트 기준·대소문자 무시)을 건드리는 PR을 막는 경비 검사.
 # pull_request_target이라 PR 쪽 코드는 절대 checkout하지 않고, 기준 커밋의 스크립트만 실행한다.
 on:
   pull_request_target:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false

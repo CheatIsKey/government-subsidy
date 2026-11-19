@@ -806,7 +806,7 @@
 | REVIEW-GATE-G21 | 실패 | 경비 작업 시간 초과(5분) | 취소·실패 → 필수 검사 못 채움 → 막힘 | 정적 검사(timeout 값). 실제 시간 초과는 검증 불가 |
 | REVIEW-GATE-G22 | 실패 | 주인이 경비 워크플로를 끄거나 dev의 파일이 깨짐 | 검사가 안 생겨 "대기"로 막힘. 받아들이는 위험 | 기록 |
 | REVIEW-GATE-G23 | 실패 | 이벤트 opened·synchronize·reopened·edited·ready_for_review | 매번 건너뛰지 않고 전체 판정. 작업·단계 `if:` 건너뛰기 없음 | 정적 검사 + 시험 PR |
-| REVIEW-GATE-G24 | 동시성 | A push 직후 B push | PR별 concurrency로 A 취소, B 커밋엔 B 결과만 | 시험 PR |
+| REVIEW-GATE-G24 | 동시성 | A push 직후 B push | PR별 concurrency로 A 취소, B 커밋엔 B 결과만 | 시험 PR. 같은 시험에서 "push 직후 잠긴 파일을 더하는" 경우도 봄: GitHub가 새 head 기준 파일 목록을 다 계산하기 전에 경비가 읽는지는 문서로 확인 못 함(PR #23 Claude 리뷰 제안), 결과를 여기 적음 |
 | REVIEW-GATE-G25 | 동시성 | 목록을 읽는 사이 새 커밋이 올라옴 | 목록 읽기 전·후 PR `head.sha`가 이벤트 `head.sha`와 다르면 실패 "새 커밋이 올라와 다시 검사 필요" | 단위 테스트 |
 | REVIEW-GATE-G26 | 동시성 | W20 경쟁과의 관계 | 경비는 W20을 고치지 않음. W20 수정 PR도 경비 실패 → 관리자 우회 1번 | 기록 |
 | REVIEW-GATE-G27 | 경계 | 기준이 main인 PR, main→dev로 바꾼 PR | main 기준이면 경비 안 돎(`branches: [dev]`). dev로 바꾸면 edited 이벤트로 돎 | 시험 PR |
