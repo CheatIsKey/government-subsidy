@@ -773,6 +773,50 @@
 
 자동 설정 점검(규칙이 바뀌었는지 매번 확인하는 검사)은 만들지 않는다 (2026-11-18 결정).
 
+## REVIEW-GATE-G 잠금 파일 경비 검사 (2026-11-19 승인)
+
+> 배경: 시험 PR #22에서 CODEOWNERS 잠금(W29)이 주인이 연 PR에는 걸리지 않았다(병합 칸 "Approvals 1/1", 코드 주인 줄 없음). 그래서 PR이 `.coderabbit.yaml`로 CodeRabbit 자동 승인을 켜고 판정 단계까지 지우면 CodeRabbit 승인만으로 병합될 수 있다. CodeRabbit은 유지한다(사용자 결정 D).
+>
+> 설계: 기준 브랜치(dev) 정의로 도는 `pull_request_target` 워크플로 "Locked Files Guard"의 작업 `locked-files`가 PR 파일 목록(API)만 읽고, 잠금 파일을 바꿨으면 실패한다. PR 코드는 checkout·실행하지 않는다. 경비가 dev에 들어가고 PR 마지막 커밋에 붙는 것을 확인한 뒤에만 dev 규칙 필수 검사에 `locked-files`를 더한다.
+>
+> 잠금 파일(루트 기준, 대소문자 무시): `.github/`·`.coderabbit/` 아래 전부, `.coderabbit.yaml`, `.coderabbit.yml`, `.coderabbit.config.ts`. 이름 바꾸기는 새 이름·옛 이름 모두 본다.
+
+| ID | 분류 | 상황 | 기대 결과 | 확인 방법 |
+|---|---|---|---|---|
+| REVIEW-GATE-G01 | 정상 | docs/·src/만 바꾼 PR | `locked-files` 성공. Claude 승인 + test·review 성공이면 병합 가능 | 시험 PR |
+| REVIEW-GATE-G02 | 정상 | `.coderabbit.yaml` 자동 승인 켬 + 판정 단계 삭제 + `@coderabbitai approve` (#22 재현) | CodeRabbit 승인·review 초록이어도 `locked-files` 실패("잠긴 파일 변경: .coderabbit.yaml, .github/workflows/claude-code-review.yml") → 병합 막힘, 관리자 우회로만 병합 | 시험 PR |
+| REVIEW-GATE-G03 | 예외 | 잠긴 경로 하나씩: `.github/workflows/x.yml`, `.github/scripts/check-claude-verdict.sh`, `.github/CODEOWNERS`, `.coderabbit.yaml`, `.coderabbit.yml`, `.coderabbit.config.ts`, `.coderabbit/foo.md` | 7가지 모두 실패, 걸린 경로 출력 | 단위 테스트 |
+| REVIEW-GATE-G04 | 경계 | 비슷한 이름: `docs/.github/x.md`, `.githubx/a`, `.github-notes.md`, `.coderabbit.yaml.bak`, `.coderabbitignore`, `src/.coderabbit.yaml` | 모두 성공(잠금 대상 아님) | 단위 테스트 |
+| REVIEW-GATE-G05 | 경계 | 이름 바꾸기: 잠금→밖(`.github/scripts/a.sh`→`docs/a.sh`), 밖→잠금(`docs/a.yml`→`.github/workflows/a.yml`) | 둘 다 실패 | 단위 테스트 |
+| REVIEW-GATE-G06 | 경계 | 잠긴 파일 삭제(`status: removed`) | 실패 | 단위 테스트 |
+| REVIEW-GATE-G07 | 경계 | 잠긴 경로의 권한 비트만 바뀜, 바이너리 | 실패(이름으로 판정) | 단위 테스트 |
+| REVIEW-GATE-G08 | 경계 | 대소문자만 다름: `.GitHub/workflows/x.yml`, `.CodeRabbit.yaml` | 실패 | 단위 테스트 |
+| REVIEW-GATE-G09 | 경계 | 파일 150개, 잠긴 파일이 101번째 이후 | 실패(쪽을 끝까지 읽음) | 단위 테스트 |
+| REVIEW-GATE-G10 | 경계 | 읽은 개수가 PR `changed_files`와 다름(3000개 넘어 잘림 등) | 실패 "파일 목록을 끝까지 읽지 못함" | 단위 테스트 |
+| REVIEW-GATE-G11 | 경계 | 바뀐 파일 0개(`changed_files: 0`, 목록 `[]`) | 성공 | 단위 테스트 |
+| REVIEW-GATE-G12 | 경계 | 커밋1이 `.github/`를 고치고 커밋2가 되돌림(최종 차이 없음) | 성공(최종 차이만 봄) | 단위 테스트 |
+| REVIEW-GATE-G13 | 권한 | PR이 경비 워크플로를 `exit 0`으로 고침 | dev 정의로 돌아 고친 내용은 실행 안 됨. `.github/` 변경이라 실패 | 시험 PR |
+| REVIEW-GATE-G14 | 권한 | PR이 경비 워크플로를 삭제 | 그 PR은 실패. 관리자 우회로 병합되면 이후 모든 PR이 "검사 대기"로 막힘(기록만, 일부러 병합하지 않음) | 시험 PR(앞부분) |
+| REVIEW-GATE-G15 | 권한 | PR이 `on: pull_request` 가짜 워크플로로 같은 이름 `locked-files` 성공 작업을 더함 | 가짜 성공이 필수 검사를 채우지 못하고 병합 막힘. 뚫리면 멈추고 사용자 결정 다시 받음 | 시험 PR(규칙 추가 직후, 가장 먼저) |
+| REVIEW-GATE-G16 | 권한 | 외부 fork PR | PR 코드 checkout·실행 안 함, `contents: read`·`pull-requests: read`만, 비밀 값 안 씀 | 정적 검사(워크플로 파일에 head checkout·`secrets.`·`write` 없음). 실제 fork 시험은 검증 불가 |
+| REVIEW-GATE-G17 | 권한 | 제목·브랜치 이름에 `$(curl ...)`, `"; exit 0 #` | 실행 안 됨. `run:`에 제목·브랜치를 직접 넣지 않고 PR 번호·SHA만 `env:`로 넘김 | 정적 검사 |
+| REVIEW-GATE-G18 | 권한 | 협업자가 `.github/scripts/`만 고친 PR + Claude PASS + 주인 승인 | 경비 실패 → 관리자 우회 필요(지금은 병합됨, 동작 바뀜) | 문서. 협업자 없어 시험 불가 |
+| REVIEW-GATE-G19 | 권한 | 주인이 정상 이유로 잠긴 파일 PR을 관리자 우회로 병합 | 허용. 사용자가 그 PR에 직접 말할 때만 쓰고 decisions.md에 기록 | 설정 GET |
+| REVIEW-GATE-G20 | 실패 | 목록 API 5xx·403·429·네트워크 오류 | 실패 "파일 목록 조회 실패" | 단위 테스트(가짜 gh) |
+| REVIEW-GATE-G21 | 실패 | 경비 작업 시간 초과(5분) | 취소·실패 → 필수 검사 못 채움 → 막힘 | 정적 검사(timeout 값). 실제 시간 초과는 검증 불가 |
+| REVIEW-GATE-G22 | 실패 | 주인이 경비 워크플로를 끄거나 dev의 파일이 깨짐 | 검사가 안 생겨 "대기"로 막힘. 받아들이는 위험 | 기록 |
+| REVIEW-GATE-G23 | 실패 | 이벤트 opened·synchronize·reopened·edited·ready_for_review | 매번 건너뛰지 않고 전체 판정. 작업·단계 `if:` 건너뛰기 없음 | 정적 검사 + 시험 PR |
+| REVIEW-GATE-G24 | 동시성 | A push 직후 B push | PR별 concurrency로 A 취소, B 커밋엔 B 결과만 | 시험 PR |
+| REVIEW-GATE-G25 | 동시성 | 목록을 읽는 사이 새 커밋이 올라옴 | 목록 읽기 전·후 PR `head.sha`가 이벤트 `head.sha`와 다르면 실패 "새 커밋이 올라와 다시 검사 필요" | 단위 테스트 |
+| REVIEW-GATE-G26 | 동시성 | W20 경쟁과의 관계 | 경비는 W20을 고치지 않음. W20 수정 PR도 경비 실패 → 관리자 우회 1번 | 기록 |
+| REVIEW-GATE-G27 | 경계 | 기준이 main인 PR, main→dev로 바꾼 PR | main 기준이면 경비 안 돎(`branches: [dev]`). dev로 바꾸면 edited 이벤트로 돎 | 시험 PR |
+| REVIEW-GATE-G28 | 마이그레이션 | 경비를 더하는 첫 PR 자체 | dev에 경비가 없어 안 돎. Claude는 정상 리뷰. 코드 주인 승인이 필요해 관리자 우회 1번(쓰기 직전 사용자에게 다시 묻고 decisions.md에 기록) | 이 PR |
+| REVIEW-GATE-G29 | 마이그레이션 | dev 규칙에 필수 검사 추가 | 경비 병합 뒤 시험 PR에서 `locked-files`가 PR 마지막 커밋에 app 15368로 붙은 것을 본 뒤에만 `{context: "locked-files", integration_id: 15368}` 추가. 앞뒤 GET 차이는 그 한 줄뿐 | 설정 GET |
+| REVIEW-GATE-G30 | 마이그레이션 | 규칙 바꿀 때 열린 PR | 열린 PR 0개를 확인한 뒤 바꿈 | `gh pr list --state open` |
+| REVIEW-GATE-G31 | 마이그레이션 | 문서 정리 | cases W08·W29, decisions W14 경우 (2), CODEOWNERS 주석, tdd-log 03을 경비 도입 뒤 실제 동작으로 고침 | 문서 리뷰 |
+
+확인 필요 결정 (2026-11-19, 모두 추천안 승인): Q1 같은 이름 가짜 검사는 규칙 추가 직후 가장 먼저 시험(G15) · Q2 규칙 추가 전 경비가 PR 마지막 커밋에 붙는지 시험 PR로 확인(G29) · Q3 이름 `locked-files`(워크플로 "Locked Files Guard") · Q4 루트 기준·대소문자 무시·하위 폴더 안 잠금 · Q5 협업자 PR 동작 변경 받아들임(G18) · Q6 목록 읽기 전·후 head SHA 확인(G25) · Q7 판정은 `.github/scripts/locked-files-guard.sh`로 분리, 워크플로는 기준 커밋만 checkout(`persist-credentials: false`), 테스트는 `test-review-gate.sh` · Q8 이벤트 5종 모두, 건너뛰기 없음 · Q9 W20과 따로 · Q10 dev만 · Q11 `group: locked-files-<PR번호>`, `cancel-in-progress: true`, `timeout-minutes: 5` · Q12 CODEOWNERS·코드 주인 승인 유지 · Q13 걸린 경로를 `::error::`로 출력.
+
 ## 변경 기록 (사람이 빼거나 고친 케이스)
 
 | 날짜 | 케이스 ID | 변경 | 이유 | 결정한 사람 |
@@ -808,3 +852,4 @@
 | 2026-11-18 | REVIEW-GATE-W01~W28 | 케이스 28개 승인. W13·W15·W17은 검증 불가로 기록만, W20은 다음 별도 PR로 | 워크플로 파일 변경 우회 막기 | 사용자 |
 | 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 CODEOWNERS 잠금 파일 전체로 넓히고, 우회 조건을 워크플로 파일 PR(누가 열었든)과 그 밖의 잠금 파일 PR(주인이 연 경우)로 나눔 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
 | 2026-11-18 | REVIEW-GATE-W31·W32 | W31: GitHub 기본값(Copilot PR 승인 하나 더) 그대로 둠. W32: CodeRabbit `allow_author_approval: false` 넣음 | PR #20 Claude 리뷰 지적·제안 | 사용자 |
+| 2026-11-19 | REVIEW-GATE-G01~G31 | 잠금 파일 경비 검사 케이스 31개와 확인 필요 Q1~Q13 추천안 승인. 첫 PR 관리자 우회는 쓰기 직전 다시 묻기로 | 시험 PR #22에서 W29 잠금이 주인 PR에 안 들음 | 사용자 |
