@@ -853,4 +853,4 @@
 | 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 CODEOWNERS 잠금 파일 전체로 넓히고, 우회 조건을 워크플로 파일 PR(누가 열었든)과 그 밖의 잠금 파일 PR(주인이 연 경우)로 나눔 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
 | 2026-11-18 | REVIEW-GATE-W31·W32 | W31: GitHub 기본값(Copilot PR 승인 하나 더) 그대로 둠. W32: CodeRabbit `allow_author_approval: false` 넣음 | PR #20 Claude 리뷰 지적·제안 | 사용자 |
 | 2026-11-19 | REVIEW-GATE-G01~G31 | 잠금 파일 경비 검사 케이스 31개와 확인 필요 Q1~Q13 추천안 승인. 첫 PR 관리자 우회는 쓰기 직전 다시 묻기로 | 시험 PR #22에서 W29 잠금이 주인 PR에 안 들음 | 사용자 |
-| 2026-11-20 | REVIEW-GATE-G28 | 기대 결과를 실제 결과로 고침: 관리자 우회 없이 병합됨(주인이 연 PR엔 코드 주인 조건이 안 걸림) | PR #23 병합 결과 | 사용자 |
+| 2026-11-20 | REVIEW-GATE-G28·W08 | G28 기대 결과를 실제 결과로 고침: 관리자 우회 없이 병합됨(주인이 연 PR엔 코드 주인 조건이 안 걸림). W08과 decisions.md W14 경우 (2)에 같은 정정을 닮(locked-files 필수 지정 뒤 조건은 G31에서 다시 적음) | PR #23 병합 결과(`--admin` 없이 `gh pr merge 23 --merge`로 병합됨, 코드 주인 승인 없음), 시험 PR #22 병합 칸 | 사용자 |
