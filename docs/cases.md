@@ -810,7 +810,7 @@
 | REVIEW-GATE-G25 | 동시성 | 목록을 읽는 사이 새 커밋이 올라옴 | 목록 읽기 전·후 PR `head.sha`가 이벤트 `head.sha`와 다르면 실패 "새 커밋이 올라와 다시 검사 필요" | 단위 테스트 |
 | REVIEW-GATE-G26 | 동시성 | W20 경쟁과의 관계 | 경비는 W20을 고치지 않음. W20 수정 PR도 경비 실패 → 관리자 우회 1번 | 기록 |
 | REVIEW-GATE-G27 | 경계 | 기준이 main인 PR, main→dev로 바꾼 PR | main 기준이면 경비 안 돎(`branches: [dev]`). dev로 바꾸면 edited 이벤트로 돎 | 시험 PR |
-| REVIEW-GATE-G28 | 마이그레이션 | 경비를 더하는 첫 PR 자체 | dev에 경비가 없어 안 돎. Claude는 정상 리뷰. 코드 주인 승인이 필요해 관리자 우회 1번(쓰기 직전 사용자에게 다시 묻고 decisions.md에 기록) | 이 PR |
+| REVIEW-GATE-G28 | 마이그레이션 | 경비를 더하는 첫 PR 자체 | dev에 경비가 없어 안 돎. Claude는 정상 리뷰. ~~코드 주인 승인이 필요해 관리자 우회 1번~~ → **실제: 관리자 우회 필요 없었음.** 주인이 연 PR에는 코드 주인 승인 조건이 걸리지 않아 Claude 승인 1개와 test·review 검사 통과만으로 병합됨(PR #23, `473ce8a`, 2026-11-20). 시험 PR #22와 같은 원인 | PR #23 |
 | REVIEW-GATE-G29 | 마이그레이션 | dev 규칙에 필수 검사 추가 | 경비 병합 뒤 시험 PR에서 `locked-files`가 PR 마지막 커밋에 app 15368로 붙은 것을 본 뒤에만 `{context: "locked-files", integration_id: 15368}` 추가. 앞뒤 GET 차이는 그 한 줄뿐 | 설정 GET |
 | REVIEW-GATE-G30 | 마이그레이션 | 규칙 바꿀 때 열린 PR | 열린 PR 0개를 확인한 뒤 바꿈 | `gh pr list --state open` |
 | REVIEW-GATE-G31 | 마이그레이션 | 문서 정리 | cases W08·W29, decisions W14 경우 (2), CODEOWNERS 주석, tdd-log 03을 경비 도입 뒤 실제 동작으로 고침 | 문서 리뷰 |
@@ -853,3 +853,4 @@
 | 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 CODEOWNERS 잠금 파일 전체로 넓히고, 우회 조건을 워크플로 파일 PR(누가 열었든)과 그 밖의 잠금 파일 PR(주인이 연 경우)로 나눔 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
 | 2026-11-18 | REVIEW-GATE-W31·W32 | W31: GitHub 기본값(Copilot PR 승인 하나 더) 그대로 둠. W32: CodeRabbit `allow_author_approval: false` 넣음 | PR #20 Claude 리뷰 지적·제안 | 사용자 |
 | 2026-11-19 | REVIEW-GATE-G01~G31 | 잠금 파일 경비 검사 케이스 31개와 확인 필요 Q1~Q13 추천안 승인. 첫 PR 관리자 우회는 쓰기 직전 다시 묻기로 | 시험 PR #22에서 W29 잠금이 주인 PR에 안 들음 | 사용자 |
+| 2026-11-20 | REVIEW-GATE-G28 | 기대 결과를 실제 결과로 고침: 관리자 우회 없이 병합됨(주인이 연 PR엔 코드 주인 조건이 안 걸림) | PR #23 병합 결과 | 사용자 |
