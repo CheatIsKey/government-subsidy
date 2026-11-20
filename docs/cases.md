@@ -731,7 +731,7 @@
 | REVIEW-GATE-W05 | 권한 | 판정 확인 단계를 성공 명령으로 바꾸거나, 작업 `if:`를 `false`로 바꿔 skipped로 만듦 | 승인 없음 → 병합 막힘 | 시험 PR (`if: false`) |
 | REVIEW-GATE-W06 | 권한 | 기존 파일은 그대로 두고 같은 작업 이름(`review`)으로 항상 성공하는 새 워크플로 추가 | 가짜 검사가 Claude 승인을 대신하지 못함. Claude가 BLOCK이면 막힘 | 시험 PR |
 | REVIEW-GATE-W07 | 권한 | W04와 W06을 함께 함 | 승인 없음 → 병합 막힘 | W04·W06 결과로 판단 (승인 여부만 보므로 같은 원리) |
-| REVIEW-GATE-W08 | 권한 | 누군가 `.github/CODEOWNERS`에 적힌 잠금 파일(CodeRabbit 설정 원천 `.coderabbit.yaml`·`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`과 `.github/`)을 정상적인 이유로 고친 PR을 엶 | 리뷰 워크플로 파일을 고쳤으면 누가 열었든 Claude가 건너뛰어 `review` 실패 → 관리자 우회 필요. 리뷰 워크플로 파일은 그대로 두고 다른 잠금 파일만 고쳤으면, 주인이 연 PR은 주인이 자기 PR을 승인할 수 없어 관리자 우회 필요, 다른 계정이 연 PR은 Claude PASS(`review` 성공)에 더해 주인 승인이 있으면 병합. 우회를 쓸 때마다 decisions.md에 기록 | W21과 같은 원리 |
+| REVIEW-GATE-W08 | 권한 | 누군가 `.github/CODEOWNERS`에 적힌 잠금 파일(CodeRabbit 설정 원천 `.coderabbit.yaml`·`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`과 `.github/`)을 정상적인 이유로 고친 PR을 엶 | 리뷰 워크플로 파일을 고쳤으면 누가 열었든 Claude가 건너뛰어 `review` 실패 → 관리자 우회 필요. 리뷰 워크플로 파일은 그대로 두고 다른 잠금 파일만 고쳤으면, 주인이 연 PR은 주인이 자기 PR을 승인할 수 없어 관리자 우회 필요, 다른 계정이 연 PR은 Claude PASS(`review` 성공)에 더해 주인 승인이 있으면 병합. 우회를 쓸 때마다 decisions.md에 기록. **정정(2026-11-20, G28):** 실제로는 주인이 연 PR에 코드 주인 승인 조건이 걸리지 않아, 다른 잠금 파일만 고친 주인 PR도 승인 1개와 test·review 통과로 관리자 우회 없이 병합됨(PR #23). 시험 PR #22에서도 병합 칸에 코드 주인 조건이 없었음(병합하지 않고 닫음). `locked-files`를 필수 검사로 넣은 뒤의 병합 조건은 G31에서 실제 시험 결과로 다시 적는다. | W21과 같은 원리 |
 | REVIEW-GATE-W09 | 권한 | 다른 봇(CodeRabbit)이 APPROVED를 냄 (`@coderabbitai approve` 명령 포함) + W04·W05 | 기준 설정(꺼짐)이면 승인 거부: #16에서 "Approval is disabled"(그때 PR 쪽 설정은 옛 키 `request_changes_workflow: false`. 지금 키 `auto_approvals.enabled: false`는 스키마상 그 별칭이라 같은 동작으로 봄. 새 키로 거부되는지는 병합 뒤 W29 시험 때 함께 확인). **PR 쪽 설정을 켜면 승인함**: #21에서 APPROVED(그 PR은 Claude 변경 요청으로만 막힘) → W29(CODEOWNERS 잠금)로 잠갔다(효과는 PR #20 병합 뒤 시험) | 시험 PR #16, #21 |
 | REVIEW-GATE-W10 | 권한 | 가짜 워크플로가 GITHUB_TOKEN으로 `gh pr review --approve` 시도 | 저장소 설정(Actions가 PR 승인 못 함)으로 거부 | 설정 확인 (GET) |
 | REVIEW-GATE-W11 | 권한 | 저장소 주인이 자기 PR을 승인하려 함 | GitHub이 거부, 승인 수에 안 들어감 | GitHub 기본 동작 (문서) |
@@ -810,7 +810,7 @@
 | REVIEW-GATE-G25 | 동시성 | 목록을 읽는 사이 새 커밋이 올라옴 | 목록 읽기 전·후 PR `head.sha`가 이벤트 `head.sha`와 다르면 실패 "새 커밋이 올라와 다시 검사 필요" | 단위 테스트 |
 | REVIEW-GATE-G26 | 동시성 | W20 경쟁과의 관계 | 경비는 W20을 고치지 않음. W20 수정 PR도 경비 실패 → 관리자 우회 1번 | 기록 |
 | REVIEW-GATE-G27 | 경계 | 기준이 main인 PR, main→dev로 바꾼 PR | main 기준이면 경비 안 돎(`branches: [dev]`). dev로 바꾸면 edited 이벤트로 돎 | 시험 PR |
-| REVIEW-GATE-G28 | 마이그레이션 | 경비를 더하는 첫 PR 자체 | dev에 경비가 없어 안 돎. Claude는 정상 리뷰. 코드 주인 승인이 필요해 관리자 우회 1번(쓰기 직전 사용자에게 다시 묻고 decisions.md에 기록) | 이 PR |
+| REVIEW-GATE-G28 | 마이그레이션 | 경비를 더하는 첫 PR 자체 | dev에 경비가 없어 안 돎. Claude는 정상 리뷰. ~~코드 주인 승인이 필요해 관리자 우회 1번~~ → **실제: 관리자 우회 필요 없었음.** 주인이 연 PR에는 코드 주인 승인 조건이 걸리지 않아 Claude 승인 1개와 test·review 검사 통과만으로 병합됨(PR #23, `473ce8a`, 2026-11-20). 시험 PR #22와 같은 원인. 같은 내용을 W08과 decisions.md W14 경우 (2)에 정정으로 달았음 | PR #23 |
 | REVIEW-GATE-G29 | 마이그레이션 | dev 규칙에 필수 검사 추가 | 경비 병합 뒤 시험 PR에서 `locked-files`가 PR 마지막 커밋에 app 15368로 붙은 것을 본 뒤에만 `{context: "locked-files", integration_id: 15368}` 추가. 앞뒤 GET 차이는 그 한 줄뿐 | 설정 GET |
 | REVIEW-GATE-G30 | 마이그레이션 | 규칙 바꿀 때 열린 PR | 열린 PR 0개를 확인한 뒤 바꿈 | `gh pr list --state open` |
 | REVIEW-GATE-G31 | 마이그레이션 | 문서 정리 | cases W08·W29, decisions W14 경우 (2), CODEOWNERS 주석, tdd-log 03을 경비 도입 뒤 실제 동작으로 고침 | 문서 리뷰 |
@@ -853,3 +853,4 @@
 | 2026-11-18 | REVIEW-GATE-W29·W30 | W29 막는 방법 A(CODEOWNERS 잠금 + 코드 주인 승인 필수) 승인, 잠금 대상에 CodeRabbit 다른 설정 원천(`.coderabbit.yml`·`.coderabbit.config.ts`·`.coderabbit/`) 포함(Claude 리뷰 제안, 같은 결정 범위), W30(잠그지 않은 파일만 고친 PR은 그대로) 추가. W08을 CODEOWNERS 잠금 파일 전체로 넓히고, 우회 조건을 워크플로 파일 PR(누가 열었든)과 그 밖의 잠금 파일 PR(주인이 연 경우)로 나눔 | PR #20 Claude 리뷰 지적, 시험 PR #21 | 사용자 |
 | 2026-11-18 | REVIEW-GATE-W31·W32 | W31: GitHub 기본값(Copilot PR 승인 하나 더) 그대로 둠. W32: CodeRabbit `allow_author_approval: false` 넣음 | PR #20 Claude 리뷰 지적·제안 | 사용자 |
 | 2026-11-19 | REVIEW-GATE-G01~G31 | 잠금 파일 경비 검사 케이스 31개와 확인 필요 Q1~Q13 추천안 승인. 첫 PR 관리자 우회는 쓰기 직전 다시 묻기로 | 시험 PR #22에서 W29 잠금이 주인 PR에 안 들음 | 사용자 |
+| 2026-11-20 | REVIEW-GATE-G28·W08 | G28 기대 결과를 실제 결과로 고침: 관리자 우회 없이 병합됨(주인이 연 PR엔 코드 주인 조건이 안 걸림). W08, decisions.md W29 줄·W14 경우 (2), tdd-log 03 우회 줄에 같은 정정을 닮. `.github/CODEOWNERS` 3행 주석은 잠금 파일이라 G31에서 고침(locked-files 필수 지정 뒤 조건은 G31에서 다시 적음) | PR #23 병합 결과(`--admin` 없이 `gh pr merge 23 --merge`로 병합됨, 코드 주인 승인 없음), 시험 PR #22 병합 칸 | 사용자 |
