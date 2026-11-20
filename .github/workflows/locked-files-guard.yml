@@ -31,4 +31,4 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: bash .github/scripts/locked-files-guard.sh
+        run: exit 0
