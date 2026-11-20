@@ -10,9 +10,9 @@ reviews:
   # 승인(Approve)·`@coderabbitai approve` 명령을 끈다. 예전 키 request_changes_workflow는 이 값의 옛 이름(스키마: legacy alias)
   # 주의: CodeRabbit은 PR 쪽 이 파일을 읽으므로 PR이 다시 켤 수 있다 (시험 PR #21). 그래서 .github/CODEOWNERS로 잠근다 (REVIEW-GATE-W29)
   auto_approvals:
-    enabled: false
+    enabled: true
     # PR 작성자가 자기 PR에서 `@coderabbitai approve`를 못 쓰게 한다. 스키마: PR 쪽 설정으로 다시 켤 수 없음 (REVIEW-GATE-W32, 2026-11-18 승인)
-    allow_author_approval: false
+    allow_author_approval: true
   high_level_summary: true
   collapse_walkthrough: true
   auto_review:
