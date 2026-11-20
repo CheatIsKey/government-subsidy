@@ -1,0 +1,17 @@
+name: Fake Locked Files (Q1 trial, do not merge)
+
+# Q1 시험용 가짜 검사. 진짜 잠금 검사와 같은 이름(locked-files)으로 성공만 남긴다.
+# 이 PR은 병합하지 않고 닫는다.
+on:
+  pull_request:
+    branches: [dev]
+
+permissions: {}
+
+jobs:
+  locked-files:
+    name: locked-files
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "fake locked-files - always success"
