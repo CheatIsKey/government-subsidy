@@ -762,6 +762,22 @@ run_test "REVIEW-GATE-G29 워크플로 'Locked Files Guard', 작업 'locked-file
 run_test "REVIEW-GATE-G24 concurrency locked-files-<PR 번호>, cancel-in-progress (Q11)" t_wf_concurrency
 run_test "REVIEW-GATE-G21 timeout-minutes: 5 (Q11)" t_wf_timeout
 
+# ---------- 외부 액션 버전 고정 (REVIEW-GATE-P01, 2026-11-24 승인) ----------
+# 모든 워크플로의 uses: 는 40자 커밋 번호로 고정하고 줄 끝 주석에 버전을 적는다.
+# 꼬리표(@v6)는 만든 쪽이 다른 코드로 옮길 수 있어, 토큰을 받는 액션이 바뀐 코드로 돌 수 있다.
+t_uses_pinned() {
+  local f line n=0 bad=""
+  for f in .github/workflows/*.yml; do
+    while IFS= read -r line; do
+      n=$((n + 1))
+      [[ "$line" =~ uses:[[:space:]]*[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40}[[:space:]]+#[[:space:]]*v[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*$ ]] || bad+="$f: $line"$'\n'
+    done < <(tr -d '\r' < "$f" | grep -E '^[[:space:]]*(-[[:space:]]+)?uses:')
+  done
+  [ "$n" -ge 1 ] || fail "uses: 줄을 하나도 못 찾음"
+  [ -z "$bad" ] || fail "커밋 번호 + 버전 주석으로 고정 안 된 uses:"$'\n'"$bad"
+}
+run_test "REVIEW-GATE-P01 모든 워크플로 uses: 가 40자 커밋 번호 + '# vX.Y.Z' 주석으로 고정" t_uses_pinned
+
 # ---------- 결과 ----------
 echo
 echo "통과 $PASSED, 실패 $FAILED"
