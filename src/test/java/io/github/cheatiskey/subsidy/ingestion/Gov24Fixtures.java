@@ -58,6 +58,13 @@ final class Gov24Fixtures {
         return new ArrayList<>(IntStream.rangeClosed(from, to).mapToObj(n -> item(id(n), "서비스 " + n)).toList());
     }
 
+    /** id(from)~id(to) 건. 모든 건의 조회수가 viewCount (null이면 "조회수": null, 문자열이면 그 원문). */
+    static List<Map<String, Object>> items(int from, int to, Object viewCount) {
+        List<Map<String, Object>> list = items(from, to);
+        list.forEach(it -> it.put("조회수", viewCount));
+        return list;
+    }
+
     /** 실제 응답 껍데기 모양의 페이지 본문. */
     static String page(int page, int perPage, int totalCount, List<Map<String, Object>> data) {
         Map<String, Object> body = new LinkedHashMap<>();

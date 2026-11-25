@@ -26,13 +26,13 @@
 | SYNC-1-H4 | 정상 | 처음 보는 혜택 | created로 셈. hash_version=2, 조회수 저장 | 통합 |
 | SYNC-1-H5 | 정상 | 조회수만 다른 두 건 / 조회수 말고 지문 칸 하나만 다른 두 건 | 조회수만 다르면 지문이 같다. 서비스명·지원내용·마감·상세URL 등 지문 칸이 하나라도 다르면 칸마다 지문이 다르다 | 단위 |
 | SYNC-1-H6 | 경계값 | 조회수가 null→0, 0→null, 1234→null(원본 "abc"라 해석 못 함). 나머지 칸은 같음 | 셋 다 unchanged로 셈. 저장된 조회수는 받은 값 그대로(0 또는 null)로 덮어씀 | 단위 + 통합 |
-| SYNC-1-H7 | 경계값 | 모든 칸이 어제와 같음 | unchanged로 셈, last_seen_at만 오늘로 바뀜(지금 동작, 기존 테스트 n2_onlyChangedItemsAreUpdated가 지킴) | 회귀 |
+| SYNC-1-H7 | 경계값 | 모든 칸이 어제와 같음 | unchanged로 셈. updated_at·version·content_hash는 그대로, last_seen_at만 오늘로 바뀜(지금 동작) | 회귀 (통합: ContentHashSyncIntegrationTest.h7_identicalItemOnlyRefreshesLastSeen. 기존 n2_onlyChangedItemsAreUpdated는 건수와 서비스명만 보고 last_seen_at은 보지 않음) |
 | SYNC-1-H8 | 마이그레이션 | 배포 뒤 첫 실행. hash_version=1인 행, 내용은 조회수 말고 어제와 같음 | 이 실행에서 한 번만 updated로 셈. 새 지문·hash_version=2 저장, updated_at·version 오름. 다시 임베딩 기능이 아직 없어 추가 비용 없음 | 통합 |
 | SYNC-1-H9 | 마이그레이션 | 배포 뒤 첫 실행. hash_version=1인 행 중 내용이 실제로 바뀐 건 | updated로 셈. 새 내용·새 지문·hash_version=2 저장 | 통합 |
 | SYNC-1-H10 | 마이그레이션 | 배포 뒤 첫 실행을 마친 같은 날 다시 실행, 그사이 조회수만 또 바뀜 | 전부 unchanged로 셈. hash_version=1인 행 0개 | 통합 |
-| SYNC-1-H11 | 마이그레이션 | 배포 뒤 첫 실행이 DB에 쓰는 도중 예외로 끝남 | 트랜잭션이 되돌려져 모든 행이 hash_version=1로 남는다. 다음 성공 실행이 새 지문·hash_version=2로 바꾼다. 반만 바뀐 상태가 남지 않는다 | 통합(쓰기 실패 주입) |
+| SYNC-1-H11 | 마이그레이션 | 배포 뒤 첫 실행이 DB에 쓰는 도중 예외로 끝남 | 트랜잭션이 되돌려져 모든 행이 hash_version=1로 남는다. 다음 성공 실행이 새 지문·hash_version=2로 바꾼다. 반만 바뀐 상태가 남지 않는다. 테스트는 모든 행을 다 쓴 직후에 실패를 넣는다: 되돌리기는 전부 되돌리거나 전부 남기는 것뿐이라, 쓰는 도중에 실패해도 결과가 같다(모든 행이 hash_version=1·옛 지문·옛 조회수로 남음) | 통합(쓰기 실패 주입) |
 | SYNC-1-H12 | 마이그레이션 | 배포 뒤 첫 실행 때 원본에 없어서 hash_version=1로 남은 행이 며칠 뒤 다시 나타남 | 나타난 실행에서 updated로 셈. 새 지문·hash_version=2 저장, 오류 없음 | 통합 |
-| SYNC-1-H13 | 경계값 | indexed_hash(검색 색인에 마지막으로 넣은 내용의 지문) 칸. 지금은 색인 기능이 없어 전부 null | 이번 변경은 indexed_hash를 읽지도 쓰지도 않는다. 값이 그대로 null | 단위 |
+| SYNC-1-H13 | 경계값 | indexed_hash(검색 색인에 마지막으로 넣은 내용의 지문) 칸. 지금은 색인 기능이 없어 전부 null | 이번 변경은 indexed_hash를 읽지도 쓰지도 않는다. 값이 그대로 null | 통합 (단위로는 구현에 묶이는 리플렉션이 필요해서. 새 건은 indexed_hash가 null이고, 기존 건에 넣어 둔 값은 내용이 바뀐 건·조회수만 바뀐 건·옛 버전 건 모두 그대로 남는지 본다) |
 
 SYNC-1-H 결정 (2026-11-24 승인, 이슈 #5):
 - 지문(content_hash)에서 조회수만 뺀다. 저장할 칸 목록과 지문 칸 목록을 나누고 hash_version을 1→2로 올린다.
