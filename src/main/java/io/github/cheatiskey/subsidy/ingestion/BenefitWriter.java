@@ -33,6 +33,17 @@ class BenefitWriter {
             "agency_name", "agency_code", "department", "reception_org", "contact_phone", "detail_url",
             "view_count", "source_registered_at", "list_modified_at");
 
+    /** 지문에서 뺄 조회수의 자리. contentValues()의 순서가 CONTENT_COLUMNS와 같다는 가정에 기댄다(SYNC-1-H5 짝 테스트가 지킴). */
+    private static final int VIEW_COUNT_INDEX = requireIndex("view_count");
+
+    private static int requireIndex(String column) {
+        int index = CONTENT_COLUMNS.indexOf(column);
+        if (index < 0) {
+            throw new IllegalStateException("CONTENT_COLUMNS에 " + column + " 칸이 없다");
+        }
+        return index;
+    }
+
     private static final String INSERT = "insert into benefit (service_id, " + String.join(", ", CONTENT_COLUMNS)
             + ", content_hash, hash_version, first_seen_at, last_seen_at, created_at, updated_at) values ("
             + "?, ".repeat(CONTENT_COLUMNS.size() + 6) + "?)";
@@ -92,7 +103,7 @@ class BenefitWriter {
     /** 지문에 넣는 값: 내용 값에서 조회수(view_count)를 뺀다. 조회수는 자주 변해서 지문에 넣으면 안 된다 (SYNC-1-H). */
     private static Object[] hashedValues(NormalizedBenefit b) {
         Object[] all = contentValues(b);
-        int skip = CONTENT_COLUMNS.indexOf("view_count");
+        int skip = VIEW_COUNT_INDEX;
         List<Object> kept = new ArrayList<>();
         for (int i = 0; i < all.length; i++) {
             if (i != skip) {
