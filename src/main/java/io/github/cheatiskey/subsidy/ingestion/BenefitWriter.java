@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Repository
 class BenefitWriter {
 
-    static final int HASH_VERSION = 1;
+    static final int HASH_VERSION = 2;
 
     /** 목록(serviceList)에서 오는 내용 컬럼. 순서는 {@link #contentValues}와 같다. */
     private static final List<String> CONTENT_COLUMNS = List.of(
@@ -32,6 +32,17 @@ class BenefitWriter {
             "apply_deadline", "apply_deadline_type", "support_type", "service_field", "user_type", "agency_type",
             "agency_name", "agency_code", "department", "reception_org", "contact_phone", "detail_url",
             "view_count", "source_registered_at", "list_modified_at");
+
+    /** 지문에서 뺄 조회수의 자리. contentValues()의 순서가 CONTENT_COLUMNS와 같다는 가정에 기댄다(SYNC-1-H5 짝 테스트가 지킴). */
+    private static final int VIEW_COUNT_INDEX = requireIndex("view_count");
+
+    private static int requireIndex(String column) {
+        int index = CONTENT_COLUMNS.indexOf(column);
+        if (index < 0) {
+            throw new IllegalStateException("CONTENT_COLUMNS에 " + column + " 칸이 없다");
+        }
+        return index;
+    }
 
     private static final String INSERT = "insert into benefit (service_id, " + String.join(", ", CONTENT_COLUMNS)
             + ", content_hash, hash_version, first_seen_at, last_seen_at, created_at, updated_at) values ("
@@ -72,12 +83,12 @@ class BenefitWriter {
                 updates.add(concat(dbValues(contentValues(benefit)),
                         new Object[] {hash, HASH_VERSION, toDb(now), toDb(now), benefit.serviceId()}));
             } else {
-                unchanged.add(new Object[] {toDb(now), benefit.serviceId()});
+                unchanged.add(new Object[] {toDb(now), benefit.viewCount(), benefit.serviceId()});
             }
         }
         jdbc.batchUpdate(INSERT, inserts);
         jdbc.batchUpdate(UPDATE, updates);
-        jdbc.batchUpdate("update benefit set last_seen_at = ? where service_id = ?", unchanged);
+        jdbc.batchUpdate("update benefit set last_seen_at = ?, view_count = ? where service_id = ?", unchanged);
         return new WriteCounts(inserts.size(), updates.size(), unchanged.size());
     }
 
@@ -89,13 +100,26 @@ class BenefitWriter {
                 b.contactPhone(), b.detailUrl(), b.viewCount(), b.sourceRegisteredAt(), b.listModifiedAt()};
     }
 
+    /** 지문에 넣는 값: 내용 값에서 조회수(view_count)를 뺀다. 조회수는 자주 변해서 지문에 넣으면 안 된다 (SYNC-1-H). */
+    private static Object[] hashedValues(NormalizedBenefit b) {
+        Object[] all = contentValues(b);
+        int skip = VIEW_COUNT_INDEX;
+        List<Object> kept = new ArrayList<>();
+        for (int i = 0; i < all.length; i++) {
+            if (i != skip) {
+                kept.add(all[i]);
+            }
+        }
+        return kept.toArray();
+    }
+
     private static Object[] dbValues(Object[] values) {
         return Arrays.stream(values).map(v -> v instanceof Instant t ? toDb(t) : v).toArray();
     }
 
     /** 정리된 내용 컬럼의 SHA-256. 원본 JSON(rawJson)은 넣지 않는다. */
     static String contentHash(NormalizedBenefit b) {
-        Object[] values = Arrays.stream(concat(new Object[] {b.serviceId()}, contentValues(b)))
+        Object[] values = Arrays.stream(concat(new Object[] {b.serviceId()}, hashedValues(b)))
                 .map(v -> v instanceof Instant t ? t.toString() : v)
                 .toArray();
         byte[] canonical = JSON.writeValueAsString(Arrays.asList(values)).getBytes(StandardCharsets.UTF_8);

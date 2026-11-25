@@ -60,8 +60,8 @@
 | status | varchar | (우리 값) | ACTIVE / REMOVED |
 | missing_count | int | (우리 값) | 성공한 전체 수집에서 연속으로 안 보인 횟수 (Q-11) |
 | first_seen_at / last_seen_at / removed_at | timestamp | (우리 값) | |
-| content_hash | char(64) | (우리 값) | 정리된 내용의 지문. 바뀌었는지 판단하는 데 쓴다 |
-| hash_version | int | (우리 값) | 지문 계산 규칙의 버전 |
+| content_hash | char(64) | (우리 값) | 정리된 내용의 지문. 바뀌었는지 판단하는 데 쓴다. 조회수(view_count)는 매일 바뀌므로 넣지 않는다(hash_version 2부터, SYNC-1-H) |
+| hash_version | int | (우리 값) | 지문 계산 규칙의 버전. 1: 조회수 포함, 2: 조회수 제외(2026-11-24). null은 1과 같이 옛 규칙으로 본다(지문이 달라 그 행이 다시 수집되는 실행에서 한 번 갱신됨, SYNC-1-H12) |
 | index_status | varchar | (우리 값) | PENDING / INDEXED / PENDING_EMBEDDING / PENDING_DELETE / FAILED |
 | indexed_hash | char(64) null | (우리 값) | ES에 마지막으로 반영한 내용의 지문 |
 | detail_status | varchar | (우리 값) | OK / MISSING (상세를 못 받은 경우, Q-10) |
